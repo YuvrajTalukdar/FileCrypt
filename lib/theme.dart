@@ -25,7 +25,7 @@ ThemeData get greenTheme{
       textTheme: TextTheme(
           headline1: TextStyle(color:Colors.lightGreenAccent,fontSize: 18),
           bodyText1: TextStyle(color:Color(0xff5cef1c),fontSize: 18),
-          bodyText2: TextStyle(color:Color(0xffcddc39),fontSize: 18)
+          bodyText2: TextStyle(color:Color(0xffcddc39),fontSize: 18),
       )
   );
 }

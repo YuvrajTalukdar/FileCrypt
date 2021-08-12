@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:stacked_themes/stacked_themes.dart';
 import 'package:filecrypt/floating_action_button.dart';
+import 'package:filecrypt/file_read_write.dart';
 
 Future main() async
 {
@@ -56,6 +57,7 @@ class Home extends StatefulWidget {
 class HomeState extends State<Home> with TickerProviderStateMixin {
 
   late TabController _tabController;
+  late file_read_write frw;
 
   @override
   void initState() {
@@ -69,30 +71,25 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
         { widget.searchHint="Search File";}
       });
     });
-
+    frw=file_read_write();
   }
 
-  int count=0;
   void getData() async{
     List<vaultData> vaultDataList=await ArchiveDatabase.instance.readAllVault();
     setState(() {
       widget.vaultDataList=vaultDataList;
       widget.vaultDataListViewer=[]..addAll(vaultDataList);
     });
-    count++;
-    debugPrint("check1="+count.toString());
     //vaultDataList.clear();
   }
 
-  void openVault()
+  void openVault(int vault_id,String pass)
   {
-
+    print("id= "+vault_id.toString()+" pass= "+pass);
   }
 
-  void openVaultDialog(int id)
-  {
-    VaultOpenDialog.start(context,new Key(""),openVault);
-  }
+  void openVaultDialog(int id,String vaultName)
+  { VaultOpenDialog.start(context,new Key(""),openVault,id,vaultName);}
 
   void search(String searchText)
   {
@@ -143,6 +140,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
         Navigator.of(context).pop(true);
         FocusScope.of(context).unfocus();
         ArchiveDatabase.instance.add_new_archive(vaultName).whenComplete(() => {getData()});
+        frw.create_folder(vaultName,pass);
       }
     }
 

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:filecrypt/create_vault_dialog.dart';
 
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
+
 class CircularButton extends StatelessWidget {
 
   final double width;
@@ -90,6 +93,29 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
     });
   }
 
+  void add_file_folder() async
+  {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if(result != null) {
+      List<File> files = result.paths.map((path) => File(path!)).toList();
+      for(int a=0;a<files.length;a++)
+      {
+        print("path= "+files[a].path);
+      }
+    } else {
+      // User canceled the picker
+    }
+
+    /*if(option==0)//add file
+    {
+      Navigator.push(context,MaterialPageRoute(builder: (context)=>file_save_open_activity(title:"Add File")));
+    }
+    else if(option==1)//add folder
+    {
+      Navigator.push(context,MaterialPageRoute(builder: (context)=>file_save_open_activity(title:"Add Folder")));
+    }*/
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -117,7 +143,7 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                           duration: const Duration(milliseconds: 250),
                           // The green box must be a child of the AnimatedOpacity widget.
                           child: Container(
-                            child: Text("Add File",style: Theme.of(context).textTheme.bodyText1,),
+                            child: Text("Add Files",style: Theme.of(context).textTheme.bodyText1,),
                             padding: const EdgeInsets.fromLTRB(8, 7, 6, 5),
                             decoration: new BoxDecoration(
                                 color:  Colors.grey[850],
@@ -135,7 +161,7 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                             color: Colors.black,
                           ),
                           onClick: (){
-                            print('First Button');
+                            add_file_folder();
                           },
                         ),
                       ],
@@ -157,7 +183,7 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                           duration: const Duration(milliseconds: 250),
                           // The green box must be a child of the AnimatedOpacity widget.
                           child: Container(
-                            child: Text("Add Folder",style: Theme.of(context).textTheme.bodyText1,),
+                            child: Text("Lock Archive",style: Theme.of(context).textTheme.bodyText1,),
                             padding: const EdgeInsets.fromLTRB(8, 7, 6, 5),
                             decoration: new BoxDecoration(
                                 color:  Colors.grey[850],
@@ -171,11 +197,10 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                           width: 50,
                           height: 50,
                           icon: Icon(
-                            Icons.create_new_folder,
+                            Icons.lock,
                             color: Colors.black,
                           ),
                           onClick: (){
-                            print('Second button');
                           },
                         ),
                       ],

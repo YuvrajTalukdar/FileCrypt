@@ -81,7 +81,7 @@ class vaultGridWidget extends State<vaultGrid>  {
                       elevation: 1.0,
                       shape: CircleBorder(),
                       splashColor: Theme.of(context).primaryColorDark,
-                      onPressed: () {widget.openVaultDialog(widget.vaultDataList[index].id);},
+                      onPressed: () {widget.openVaultDialog(widget.vaultDataList[index].id,widget.vaultDataList[index].vaultName);},
                       onLongPress: ()
                       { showCustomMenu(widget.vaultDataList[index].id);},
                     ),

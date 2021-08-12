@@ -31,6 +31,10 @@ dependencies:
   stacked_themes:
   sqflite:
   fluttertoast:
+  path_provider:
+  ext_storage:
+  file_picker:
+  filesystem_picker: ^1.0.3
 
 dev_dependencies:
   flutter_test:

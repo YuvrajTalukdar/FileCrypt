@@ -3,51 +3,27 @@ import 'package:fluttertoast/fluttertoast.dart';
 
 class VaultOpenDialog
 {
-  static start(context,Key key,openVault)
+  static start(context,Key key,openVault,int id,String vaultName)
   {
     showDialog(context: context,
         builder: (context)
-        { return vaultOpenDialog(key,openVault);}
+        { return vaultOpenDialog(key,openVault,id,vaultName);}
     );
   }
 }
 
 class vaultOpenDialog extends StatefulWidget
 {
-  vaultOpenDialog(Key key,this.openVault) : super(key: key);
+  vaultOpenDialog(Key key,this.openVault,this.id,this.vaultName) : super(key: key);
   final openVault;
+  int id;
+  String vaultName;
 
   @override
   DialogContentHolder createState() => DialogContentHolder();
 }
 
 class DialogContentHolder extends State<vaultOpenDialog>  {
-
-  String vaultName="";
-  var vaultName_textfield_controller = TextEditingController();
-  Widget vaultNameClearIcon()
-  {
-    if (vaultName.length > 0)
-    {
-      return IconButton
-        (
-        icon:
-        IconButton(
-          padding: EdgeInsets.zero,
-          icon:Icon(Icons.cancel,color:Theme.of(context).primaryColor),
-          onPressed: (){
-            vaultName_textfield_controller.clear();
-            setState(()
-            { vaultName = "";});
-            FocusScope.of(context).unfocus();
-          },
-        ),
-        onPressed: (){},
-      );
-    }
-    else
-    { return SizedBox.shrink();}
-  }
 
   String vaultPass="";
   var vaultPass_textfield_controller = TextEditingController();
@@ -108,7 +84,7 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
                 width: double.infinity,
                 decoration:
                 BoxDecoration
-                  (
+                (
                     color: Colors.grey[900],
                     shape: BoxShape.rectangle,
                     borderRadius:
@@ -122,31 +98,28 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
               Padding(
                 padding: const EdgeInsets.only(left: 10, top: 10, right: 10, bottom: 0,),
                 child:
-                new TextField
-                (
-                  controller: vaultName_textfield_controller,
-                  //textInputAction: TextInputAction.search,
-                  style: Theme.of(context).textTheme.bodyText1,
-                  onChanged: (text)
-                  {
-                    setState(()
-                    { vaultName = text;});
-                  },
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Color(0x92575757),
-                    suffixIcon: vaultNameClearIcon(),
-                    contentPadding: new EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
-                    hintText: 'Vault Name',
-                    hintStyle: Theme.of(context).textTheme.bodyText2,
-                    enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).primaryColorDark),
-                        borderRadius: BorderRadius.all(Radius.circular(90.0))
+                Container(
+                  child:
+                  Center(
+                    child:
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(5, 15, 0, 10),
+                      child:
+                      RichText(
+                        text:
+                        TextSpan(
+                          text: widget.vaultName,
+                          style: Theme.of(context).textTheme.bodyText1,
+                        ),
+                      ),
                     ),
-                    focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).primaryColor),
-                        borderRadius: BorderRadius.all(Radius.circular(90.0))
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[850],
+                    border: Border.all(
+                      color: Theme.of(context).primaryColorDark,
                     ),
+                    borderRadius: BorderRadius.circular(100.0),
                   ),
                 ),
               ),
@@ -193,7 +166,11 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
                     child:
                     ElevatedButton(
                         onPressed: ()
-                        { },
+                        {
+                          widget.openVault(widget.id,vaultPass);
+                          FocusScope.of(context).unfocus();
+                          return Navigator.of(context).pop(true);
+                        },
                         child: Text('OK'),
                         style: ElevatedButton.styleFrom(primary: Theme.of(context).primaryColor,onPrimary: Colors.black)
                     ),
