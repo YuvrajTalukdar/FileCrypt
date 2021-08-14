@@ -32,9 +32,9 @@ dependencies:
   sqflite:
   fluttertoast:
   path_provider:
-  ext_storage:
   file_picker:
-  filesystem_picker: ^1.0.3
+  encrypt: ^5.0.1
+  crypto: ^3.0.1
 
 dev_dependencies:
   flutter_test:

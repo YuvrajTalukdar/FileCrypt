@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
 class VaultOpenDialog
 {
@@ -167,9 +166,7 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
                     ElevatedButton(
                         onPressed: ()
                         {
-                          widget.openVault(widget.id,vaultPass);
-                          FocusScope.of(context).unfocus();
-                          return Navigator.of(context).pop(true);
+                          widget.openVault(widget.id,widget.vaultName,vaultPass);
                         },
                         child: Text('OK'),
                         style: ElevatedButton.styleFrom(primary: Theme.of(context).primaryColor,onPrimary: Colors.black)

@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-//import 'package:ext_storage/ext_storage.dart';
+import 'package:filecrypt/aes.dart';
 
 class PathInfo
 {
@@ -13,35 +11,21 @@ class PathInfo
 }
 
 class file_read_write {
-  Future<String> get _localPath async
+  String localPath="";
+  late aes aes_handler;
+
+  Future<String> get _localPath async//ok check
   {
     final directory = await getApplicationDocumentsDirectory();
 
     return directory.path;
   }
-
-  /*Future<String> get_ext_path() async
+  
+  load_path() async//ok check
   {
-    var path = await ExtStorage.getExternalStorageDirectory();
-    return path;
-  }*/
-
-  /*Future<String> get_menu_item_path(int item_code) async
-  {
-    String path="";
-    if(item_code==0)
-    { path = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_PICTURES);}
-    else if(item_code==1)
-    { path = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_MUSIC);}
-    else if(item_code==2)
-    { path = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_MOVIES);}
-    else if(item_code==3)
-    { path = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_DOCUMENTS);}
-    else if(item_code==4)
-    { path = await ExtStorage.getExternalStoragePublicDirectory(ExtStorage.DIRECTORY_DOWNLOADS);}
-
-    return path;
-  }*/
+    localPath=await _localPath;
+    aes_handler = aes();
+  }
 
   String get_name_from_dir(String path) //ok check
   {
@@ -77,18 +61,24 @@ class file_read_write {
     return pathInfoList;
   }
 
-  void create_folder(String folder_name,String pass) async
+  void create_folder(String folder_name,String pass) async//ok check
   {
-    String appPath = await _localPath;
-    print("path1="+appPath);
-    final path= Directory(appPath+"/"+folder_name);
+    String new_path=localPath+"/"+folder_name;
+    Directory path= Directory(new_path);
     if(!await path.exists())
     {
       path.create();
     }
+    DateTime now = new DateTime.now();
+    final File file = File('${path.path}/passcheck_'+now.year.toString()+
+    now.month.toString()+now.day.toString()+now.hour.toString()+now.minute.toString()+now.second.toString());
+    await file.writeAsString(aes_handler.encrypt(pass, pass));
   }
 
-  void delete_folder() {
-
+  void delete_folder(String folderName)//ok check
+  {
+    String path=localPath+"/"+folderName;
+    final dir = Directory(path);
+    dir.deleteSync(recursive: true);
   }
 }

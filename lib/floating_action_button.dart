@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:filecrypt/create_vault_dialog.dart';
-
-import 'package:file_picker/file_picker.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:io';
+
+import 'package:filecrypt/create_vault_dialog.dart';
+import 'package:file_picker/file_picker.dart';
+
 
 class CircularButton extends StatelessWidget {
 
@@ -27,10 +29,12 @@ class CircularButton extends StatelessWidget {
 
 class floatingActionButton extends StatefulWidget {
   @override
-  floatingActionButton({required this.tabController,required this.add_vault});
+  floatingActionButton({required this.tabController,required this.add_vault,required this.is_vault_open,required this.closeVault});
   floatingActionButtonHolder createState() => floatingActionButtonHolder();
   final tabController;
   final add_vault;
+  final is_vault_open;
+  final closeVault;
 }
 
 class floatingActionButtonHolder extends State<floatingActionButton> with TickerProviderStateMixin {
@@ -201,6 +205,11 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                             color: Colors.black,
                           ),
                           onClick: (){
+                            widget.closeVault();
+                            animationController.reverse();
+                            setState(() {
+                              FABTextVisible = false;
+                            });
                           },
                         ),
                       ],
@@ -215,25 +224,36 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                       {
                         if(widget.tabController.index==0)
                         {
-                          if (animationController.isCompleted)
+                          if(animationController.isCompleted)
                           { animationController.reverse();}
                           return  VaultDialog.start(context,new Key(""),widget.add_vault);
                         }
                         else
                         {
-                          if (animationController.isCompleted)
+                          if (widget.is_vault_open())
                           {
-                            animationController.reverse();
-                            setState(() {
-                              FABTextVisible=false;
-                            });
+                            if (animationController.isCompleted)
+                            {
+                              animationController.reverse();
+                              setState(() {
+                                FABTextVisible = false;
+                              });
+                            }
+                            else
+                            {
+                              animationController.forward();
+                              setState(() {
+                                FABTextVisible = true;
+                              });
+                            }
                           }
                           else
                           {
-                            animationController.forward();
-                            setState(() {
-                              FABTextVisible=true;
-                            });
+                            Fluttertoast.showToast(
+                              msg: "Open a vault first",
+                              toastLength: Toast.LENGTH_SHORT,
+                              gravity: ToastGravity.BOTTOM,
+                            );
                           }
                         }
                       },

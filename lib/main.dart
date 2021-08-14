@@ -11,6 +11,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:stacked_themes/stacked_themes.dart';
 import 'package:filecrypt/floating_action_button.dart';
 import 'package:filecrypt/file_read_write.dart';
+import 'package:filecrypt/aes.dart';
 
 Future main() async
 {
@@ -58,6 +59,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
   late TabController _tabController;
   late file_read_write frw;
+  late aes aes_obj;
+  String password="";
 
   @override
   void initState() {
@@ -72,6 +75,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       });
     });
     frw=file_read_write();
+    frw.load_path();
+    aes_obj=aes();
   }
 
   void getData() async{
@@ -83,13 +88,72 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     //vaultDataList.clear();
   }
 
-  void openVault(int vault_id,String pass)
+  bool is_vault_open()
   {
-    print("id= "+vault_id.toString()+" pass= "+pass);
+    if(password.length==0)
+    { return false;}
+    else
+    { return true;}
+  }
+
+  void closeVault()
+  {
+    password="";
+    Fluttertoast.showToast(
+      msg: "Vault Locked",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+    );
+  }
+
+  void openVault(int vault_id,String vaultName,String pass) async
+  {
+    List<PathInfo> pathinfoList=frw.get_path_list(frw.localPath+"/"+vaultName);
+    bool pass_ok=false;
+    for(int a=0;a<pathinfoList.length;a++)
+    {
+      if(pathinfoList[a].name.contains("passcheck_"))
+      {
+        File passCheckFile = File(pathinfoList[a].path);
+        String text = await passCheckFile.readAsString();
+        text=aes_obj.decrypt(text,pass);
+        if(text.compareTo(pass)==0)
+        { pass_ok=true;}
+        break;
+      }
+    }
+    if(pass_ok)
+    {
+      password=pass;
+      FocusScope.of(context).unfocus();
+      return Navigator.of(context).pop(true);
+    }
+    else
+    {
+      Fluttertoast.showToast(
+        msg: "Incorrect Password !",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
+    //decrypt the files
+    //String encrypted_text=aes_obj.encrypt("hello world", "123pass");
+    //print("encrypred_text= "+encrypted_text);
   }
 
   void openVaultDialog(int id,String vaultName)
-  { VaultOpenDialog.start(context,new Key(""),openVault,id,vaultName);}
+  {
+    if(!is_vault_open())
+    { VaultOpenDialog.start(context,new Key(""),openVault,id,vaultName);}
+    else
+    {
+      Fluttertoast.showToast(
+        msg: "Close the already open vault first.",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
+  }
 
   void search(String searchText)
   {
@@ -180,6 +244,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
               .of(context)
               .primaryColorDark)),
           onPressed: () {
+            frw.delete_folder(widget.vaultDataList[itemIndex].vaultName);
             ArchiveDatabase.instance.delete(id);
             setState(() {
               widget.vaultDataList.removeAt(itemIndex);
@@ -353,7 +418,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           ),
         ),
       ),
-      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault)
+      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault,is_vault_open: is_vault_open,closeVault: closeVault)
     );
   }
 }
