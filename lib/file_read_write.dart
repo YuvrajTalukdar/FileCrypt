@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'dart:convert';
+import 'dart:ui';
+import 'package:async/async.dart';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:filecrypt/aes.dart';
 
@@ -80,5 +84,49 @@ class file_read_write {
     String path=localPath+"/"+folderName;
     final dir = Directory(path);
     dir.deleteSync(recursive: true);
+  }
+
+  void read_file_from_vault(String vaultName,String path,String pass) async
+  {
+    File decryptedFile = File(localPath+"/"+vaultName+"/test.jpg");
+    File encryptedFile = File(path);
+    final iterator = ChunkedStreamReader(encryptedFile.openRead());
+    while(true)
+    {
+      List<int> lengthBytes = await iterator.readChunk(5472);//16,16,32,1376,2736
+      if (lengthBytes.isEmpty)
+      { break;}
+      String encrypted_text=base64.encode(lengthBytes);
+      String decrypted_text=aes_handler.decrypt(encrypted_text,pass);
+      //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
+      List<int> decrypted_bytes=base64.decode(decrypted_text);
+
+      decryptedFile.writeAsBytesSync(decrypted_bytes,mode:FileMode.append,flush: false);
+    }
+  }
+
+  void add_files_to_vault(String vaultName,String pass, List<File> fileList) async //ok check
+  {
+    //Stopwatch watch=new Stopwatch()..start();
+    for(int a=0;a<fileList.length;a++)
+    {
+      File encryptedFile = File(localPath+"/"+vaultName+"/"+get_name_from_dir(fileList[a].path));
+      final iterator = ChunkedStreamReader(fileList[a].openRead());
+      while (true) {
+        List<int> lengthBytes = await iterator.readChunk(4096);//4,8,16,1024,2048
+        if (lengthBytes.isEmpty)
+        { break;}
+
+        String plain_text=base64.encode(lengthBytes);
+        String encrypted_text=aes_handler.encrypt(plain_text, pass);
+        List<int> encrypted_bytes=base64.decode(encrypted_text);
+        encryptedFile.writeAsBytesSync(encrypted_bytes,mode:FileMode.append,flush: false);
+        //print("enc_len= "+encrypted_bytes.length.toString()+" dec_len="+plain_text.length.toString()+" orig_len="+lengthBytes.length.toString());
+        //encryptedFile.writeAsBytesSync(lengthBytes,mode:FileMode.append,flush: false);//for writing non encrypted bytes
+      }
+      //testing
+      //read_file_from_vault(vaultName,localPath+"/"+vaultName+"/"+get_name_from_dir(fileList[a].path),pass);
+    }
+    //print('fx executed in ${watch.elapsed}');
   }
 }

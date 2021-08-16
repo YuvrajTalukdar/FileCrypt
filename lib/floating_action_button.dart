@@ -29,12 +29,13 @@ class CircularButton extends StatelessWidget {
 
 class floatingActionButton extends StatefulWidget {
   @override
-  floatingActionButton({required this.tabController,required this.add_vault,required this.is_vault_open,required this.closeVault});
+  floatingActionButton({required this.tabController,required this.add_vault,required this.is_vault_open,required this.closeVault,required this.add_files_to_vault});
   floatingActionButtonHolder createState() => floatingActionButtonHolder();
   final tabController;
   final add_vault;
   final is_vault_open;
   final closeVault;
+  final add_files_to_vault;
 }
 
 class floatingActionButtonHolder extends State<floatingActionButton> with TickerProviderStateMixin {
@@ -100,16 +101,13 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
   void add_file_folder() async
   {
     FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if(result != null) {
+    if(result != null)
+    {
       List<File> files = result.paths.map((path) => File(path!)).toList();
-      for(int a=0;a<files.length;a++)
-      {
-        print("path= "+files[a].path);
-      }
-    } else {
-      // User canceled the picker
+      widget.add_files_to_vault(files);
     }
-
+    else
+    {}
     /*if(option==0)//add file
     {
       Navigator.push(context,MaterialPageRoute(builder: (context)=>file_save_open_activity(title:"Add File")));

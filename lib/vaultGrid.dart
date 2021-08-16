@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class vaultGrid extends StatefulWidget
 {
-  vaultGrid({required Key key, required this.vaultDataList,required this.delete_vault,required this.openVaultDialog}) : super(key: key);
+  vaultGrid({required Key key, required this.vaultDataList,required this.delete_vault,required this.openVaultDialog,required this.is_vault_open}) : super(key: key);
   List<vaultData> vaultDataList;
   final delete_vault;
   final openVaultDialog;
+  final is_vault_open;
 
   @override
   vaultGridWidget createState() => vaultGridWidget();
@@ -83,7 +85,18 @@ class vaultGridWidget extends State<vaultGrid>  {
                       splashColor: Theme.of(context).primaryColorDark,
                       onPressed: () {widget.openVaultDialog(widget.vaultDataList[index].id,widget.vaultDataList[index].vaultName);},
                       onLongPress: ()
-                      { showCustomMenu(widget.vaultDataList[index].id);},
+                      {
+                        if(widget.is_vault_open())
+                        {
+                          Fluttertoast.showToast(
+                            msg: "Lock all open vaults first.",
+                            toastLength: Toast.LENGTH_SHORT,
+                            gravity: ToastGravity.BOTTOM,
+                          );
+                        }
+                        else
+                        { showCustomMenu(widget.vaultDataList[index].id);}
+                      },
                     ),
                     Text(widget.vaultDataList[index].vaultName)
                   ]

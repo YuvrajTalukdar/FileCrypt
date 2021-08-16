@@ -61,6 +61,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   late file_read_write frw;
   late aes aes_obj;
   String password="";
+  String vaultName="";
 
   @override
   void initState() {
@@ -99,6 +100,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   void closeVault()
   {
     password="";
+    vaultName="";
     Fluttertoast.showToast(
       msg: "Vault Locked",
       toastLength: Toast.LENGTH_SHORT,
@@ -106,9 +108,14 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     );
   }
 
-  void openVault(int vault_id,String vaultName,String pass) async
+  void add_files_to_vault(List<File> fileList)
   {
-    List<PathInfo> pathinfoList=frw.get_path_list(frw.localPath+"/"+vaultName);
+    frw.add_files_to_vault(vaultName,password,fileList);
+  }
+
+  void openVault(int vault_id,String vault_name,String pass) async
+  {
+    List<PathInfo> pathinfoList=frw.get_path_list(frw.localPath+"/"+vault_name);
     bool pass_ok=false;
     for(int a=0;a<pathinfoList.length;a++)
     {
@@ -125,6 +132,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     if(pass_ok)
     {
       password=pass;
+      vaultName=vault_name;
       FocusScope.of(context).unfocus();
       return Navigator.of(context).pop(true);
     }
@@ -403,7 +411,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                   decoration: new BoxDecoration(
                       color: Colors.black
                   ),
-                  child: vaultGrid(key: new Key(""),vaultDataList: widget.vaultDataListViewer,delete_vault:delete_vault,openVaultDialog: openVaultDialog,),
+                  child: vaultGrid(key: new Key(""),vaultDataList: widget.vaultDataListViewer,delete_vault:delete_vault,openVaultDialog: openVaultDialog,is_vault_open: is_vault_open),
                 ),
               Container(
                 decoration: new BoxDecoration(
@@ -418,7 +426,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           ),
         ),
       ),
-      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault,is_vault_open: is_vault_open,closeVault: closeVault)
+      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault,is_vault_open: is_vault_open,closeVault: closeVault,add_files_to_vault: add_files_to_vault)
     );
   }
 }
