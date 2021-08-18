@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:filecrypt/database.dart';
+import 'package:filecrypt/exploreGrid.dart';
 import 'package:filecrypt/vaultOpenDialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +10,7 @@ import 'package:filecrypt/theme_dialog.dart';
 import 'package:filecrypt/vaultGrid.dart';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:stacked_themes/stacked_themes.dart';
 import 'package:filecrypt/floating_action_button.dart';
@@ -46,7 +50,6 @@ class Home extends StatefulWidget {
   String searchHint="Search Vault";
   var search_textfield_controller = TextEditingController();
 
-
   List<vaultData> vaultDataList=[];
   List<vaultData> vaultDataListViewer=[];
   bool onceExecuted=false;
@@ -62,6 +65,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   late aes aes_obj;
   String password="";
   String vaultName="";
+  List<vaultContent> vaultContentList=[];
 
   @override
   void initState() {
@@ -101,6 +105,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   {
     password="";
     vaultName="";
+    setState(() {
+      vaultContentList=[];
+    });
     Fluttertoast.showToast(
       msg: "Vault Locked",
       toastLength: Toast.LENGTH_SHORT,
@@ -108,32 +115,56 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     );
   }
 
-  void add_files_to_vault(List<File> fileList)
+  void add_files_to_vault(List<File> fileList) async
   {
-    frw.add_files_to_vault(vaultName,password,fileList);
+    List<vaultContent> contentList=await frw.add_files_to_vault(vaultContentList.length,vaultName,password,fileList);
+
+    setState(() {
+      vaultContentList.addAll(contentList);
+    });
+    FilePicker.platform.clearTemporaryFiles();
+  }
+
+  void delete_items()
+  {
+
+  }
+
+  void extract_items()
+  {
+
   }
 
   void openVault(int vault_id,String vault_name,String pass) async
   {
-    List<PathInfo> pathinfoList=frw.get_path_list(frw.localPath+"/"+vault_name);
-    bool pass_ok=false;
-    for(int a=0;a<pathinfoList.length;a++)
+    File passCheckFile = File(frw.localPath+"/"+vault_name+"/passcheck");
+    String text = await passCheckFile.readAsString();
+    text=aes_obj.decrypt(text,pass);
+
+    if(text.compareTo(pass)==0)
     {
-      if(pathinfoList[a].name.contains("passcheck_"))
-      {
-        File passCheckFile = File(pathinfoList[a].path);
-        String text = await passCheckFile.readAsString();
-        text=aes_obj.decrypt(text,pass);
-        if(text.compareTo(pass)==0)
-        { pass_ok=true;}
-        break;
-      }
-    }
-    if(pass_ok)
-    {
+      List<PathInfo> pathinfoList=frw.get_path_list(frw.localPath+"/"+vault_name);
       password=pass;
       vaultName=vault_name;
       FocusScope.of(context).unfocus();
+      //decrypt data
+      List<vaultContent> contentList=[];
+      for(int a=0;a<pathinfoList.length;a++)
+      {
+        if(pathinfoList[a].name.compareTo("passcheck")!=0)
+        {
+          vaultContent content=await frw.decrypt_file_and_load_data(pathinfoList[a].path, password);
+          content.encryptedFilePath=pathinfoList[a].path;
+          content.id=contentList.length;
+          contentList.add(content);
+          print("dename="+content.fileName+" ico_code="+content.iconCode.toString());
+          print("enname="+content.encryptedFileName);
+        }
+      }
+      setState(() {
+        vaultContentList=contentList;
+      });
+
       return Navigator.of(context).pop(true);
     }
     else
@@ -176,7 +207,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       widget.vaultDataListViewer=temp_vaultData_list;
     });
   }
-
+  //List<int> bin_list=[];
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
@@ -314,7 +345,18 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       else
       { return SizedBox.shrink();}
     }
+    
 
+    /*void test() async
+    {
+      List<int> l=await frw.decrypt_and_save_file('', vaultName, password);
+      print("l sixe="+l.length.toString());
+
+      setState(() {
+        bin_list.addAll(l);
+      });
+    }*/
+    
     return Scaffold(
       body:DefaultTabController(
         length: 2,
@@ -375,7 +417,10 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                           return  ThemeDialog.start(context);
                         }
                         else if(value.toString().compareTo("About")==0)
-                        { debugPrint("About");}
+                        { debugPrint("About");
+                          //test();
+
+                        }
                       });
                     },
                     itemBuilder: (context) => [
@@ -417,16 +462,14 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                 decoration: new BoxDecoration(
                       color: Colors.black
                 ),
-                child: ListView.builder(
-                itemCount: 100,
-                itemBuilder: (context,index){
-                  return Text("Item $index");
-                })),
+                child: exploreGrid(key:Key(""),vaultContentList:vaultContentList,delete_items: delete_items,extract_items: extract_items,is_vault_open: is_vault_open)
+                //Image.memory(Uint8List.fromList(bin_list))
+              ),
             ],
           ),
         ),
       ),
-      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault,is_vault_open: is_vault_open,closeVault: closeVault,add_files_to_vault: add_files_to_vault)
+      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault,is_vault_open: is_vault_open,closeVault: closeVault,add_files_to_vault: add_files_to_vault,)
     );
   }
 }

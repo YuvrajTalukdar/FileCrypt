@@ -108,14 +108,6 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
     }
     else
     {}
-    /*if(option==0)//add file
-    {
-      Navigator.push(context,MaterialPageRoute(builder: (context)=>file_save_open_activity(title:"Add File")));
-    }
-    else if(option==1)//add folder
-    {
-      Navigator.push(context,MaterialPageRoute(builder: (context)=>file_save_open_activity(title:"Add Folder")));
-    }*/
   }
 
   @override
@@ -163,6 +155,10 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
                             color: Colors.black,
                           ),
                           onClick: (){
+                            animationController.reverse();
+                            setState(() {
+                              FABTextVisible = false;
+                            });
                             add_file_folder();
                           },
                         ),

@@ -126,7 +126,7 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
                 padding: const EdgeInsets.only(left: 10, top: 10, right: 10, bottom: 0,),
                 child:
                 new TextField
-                  (
+                (
                   controller: vaultPass_textfield_controller,
                   obscureText:true,
                   style: Theme.of(context).textTheme.bodyText1,
