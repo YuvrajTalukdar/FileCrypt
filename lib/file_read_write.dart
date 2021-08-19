@@ -146,7 +146,6 @@ class file_read_write {
     vaultContent content=vaultContent();
     content.encryptedFileName=get_name_from_dir(path);
     content.fileName=aes_handler.decrypt(base32.decodeAsString(content.encryptedFileName),pass);
-    print("dename2="+content.fileName);
 
     content.iconCode=get_icon_code(get_ext(content.fileName));
     if(content.iconCode==-1)

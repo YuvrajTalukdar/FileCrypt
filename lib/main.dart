@@ -9,6 +9,7 @@ import 'package:filecrypt/theme.dart';
 import 'package:filecrypt/theme_dialog.dart';
 import 'package:filecrypt/vaultGrid.dart';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -33,7 +34,7 @@ class FileCrypt extends StatelessWidget
       builder: (context,regularTheme,darkTheme,themeMode)=>
         MaterialApp(
           title: 'File Crypt',
-          home: Home(key:Key(''),title: 'File Crypt'),
+          home: Home(key:Key('')),
           theme: regularTheme,
           darkTheme: darkTheme,
           themeMode: themeMode,
@@ -43,12 +44,7 @@ class FileCrypt extends StatelessWidget
 }
 
 class Home extends StatefulWidget {
-  Home({required Key key, required this.title}) : super(key: key);
-  final String title;
-
-  String searchText="";
-  String searchHint="Search Vault";
-  var search_textfield_controller = TextEditingController();
+  Home({required Key key}) : super(key: key);
 
   List<vaultData> vaultDataList=[];
   List<vaultData> vaultDataListViewer=[];
@@ -60,12 +56,24 @@ class Home extends StatefulWidget {
 
 class HomeState extends State<Home> with TickerProviderStateMixin {
 
+  String searchText="";
+  String searchHint="Search Vault";
+  var search_textfield_controller = TextEditingController();
+
   late TabController _tabController;
+
   late file_read_write frw;
   late aes aes_obj;
+
   String password="";
   String vaultName="";
+
   List<vaultContent> vaultContentList=[];
+  List<vaultContentBackup> vaultContentBackupList=[];
+
+  bool is_select_mode_on=false;
+  int no_of_selected_items=0;
+  bool select_all_items=false;
 
   @override
   void initState() {
@@ -74,9 +82,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     _tabController.addListener(() {
       setState(() {
         if(_tabController.index==0)
-        { widget.searchHint="Search Vault";}
+        { searchHint="Search Vault";}
         else
-        { widget.searchHint="Search File";}
+        { searchHint="Search File";}
       });
     });
     frw=file_read_write();
@@ -107,6 +115,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     vaultName="";
     setState(() {
       vaultContentList=[];
+      is_select_mode_on=false;
+      no_of_selected_items=0;
+      select_all_items=false;
     });
     Fluttertoast.showToast(
       msg: "Vault Locked",
@@ -157,8 +168,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           content.encryptedFilePath=pathinfoList[a].path;
           content.id=contentList.length;
           contentList.add(content);
-          print("dename="+content.fileName+" ico_code="+content.iconCode.toString());
-          print("enname="+content.encryptedFileName);
         }
       }
       setState(() {
@@ -175,9 +184,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
         gravity: ToastGravity.BOTTOM,
       );
     }
-    //decrypt the files
-    //String encrypted_text=aes_obj.encrypt("hello world", "123pass");
-    //print("encrypred_text= "+encrypted_text);
   }
 
   void openVaultDialog(int id,String vaultName)
@@ -196,18 +202,244 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
   void search(String searchText)
   {
-    List<vaultData> temp_vaultData_list=[];
-    widget.vaultDataListViewer.clear();
-    for(int a=0;a<widget.vaultDataList.length;a++)
+    if(_tabController.index==0)
     {
-      if(widget.vaultDataList[a].vaultName.contains(searchText) || searchText.length==0)
-      { temp_vaultData_list.add(widget.vaultDataList[a]);}
+      List<vaultData> temp_vaultData_list = [];
+      widget.vaultDataListViewer.clear();
+      for (int a = 0; a < widget.vaultDataList.length; a++) {
+        if (widget.vaultDataList[a].vaultName.toLowerCase().contains(searchText.toLowerCase()) ||
+            searchText.length == 0) {
+          temp_vaultData_list.add(widget.vaultDataList[a]);
+        }
+      }
+      setState(() {
+        widget.vaultDataListViewer = temp_vaultData_list;
+      });
     }
+    else
+    {
+      List<vaultContent> ContentList=[];
+      if(vaultContentBackupList.length>0)
+      {
+        for(int a=vaultContentBackupList.length-1;a>=0;a--)
+        { vaultContentList.insert(vaultContentBackupList[a].index,vaultContentBackupList[a].contentBackup);}
+        vaultContentBackupList.clear();
+      }
+      print("len="+vaultContentBackupList.length.toString());
+      for(int a=vaultContentList.length-1;a>=0;a--)
+      {
+        if(vaultContentList[a].fileName.toLowerCase().contains(searchText.toLowerCase()) ||
+          searchText.length==0)
+        {
+          ContentList.add(vaultContentList[a]);
+        }
+        else
+        {
+          vaultContentBackup backup=new vaultContentBackup();
+          backup.index=a;
+          backup.contentBackup=vaultContentList[a];
+          vaultContentBackupList.add(backup);
+        }
+      }
+      setState(() {
+        vaultContentList=ContentList.reversed.toList();
+      });
+    }
+  }
+
+  Widget hidingIcon()
+  {
+    if (searchText.length > 0)
+    {
+      return IconButton
+        (
+        icon:
+        IconButton(
+          padding: EdgeInsets.zero,
+          icon:Icon(Icons.cancel,color:Theme.of(context).primaryColor),
+          onPressed: (){
+            search_textfield_controller.clear();
+            search("");
+            setState(()
+            { searchText = "";});
+            FocusScope.of(context).unfocus();
+          },
+        ),
+        onPressed: (){},
+      );
+    }
+    else
+    { return SizedBox.shrink();}
+  }
+
+  void select_mode(bool mode)
+  {
     setState(() {
-      widget.vaultDataListViewer=temp_vaultData_list;
+      is_select_mode_on=mode;
     });
   }
-  //List<int> bin_list=[];
+
+  bool get_selected_mode()
+  { return is_select_mode_on;}
+
+  void selected_items_counter(int nos)
+  {
+    setState(() {
+      no_of_selected_items=nos;
+    });
+  }
+
+  int get_no_of_selected_items()
+  { return no_of_selected_items;}
+
+  Widget rename_button()
+  {
+    if(no_of_selected_items==1)
+    {
+      return
+      Material(
+          elevation: 4.0,
+          shape: CircleBorder(),
+          clipBehavior: Clip.hardEdge,
+          color: Colors.grey[850],
+          child: Ink(
+            width: 30.0,
+            height: 30.0,
+            child: InkWell(
+              child: Icon(Icons.drive_file_rename_outline, size: 20, color: Theme.of(context).primaryColor,),
+              onTap: () {},
+            ),
+          )
+      );
+    }
+    else
+    { return Container();}
+  }
+
+  Widget about_button()
+  {
+    if(no_of_selected_items==1) {
+      return
+      Material(
+          elevation: 4.0,
+          shape: CircleBorder(),
+          clipBehavior: Clip.hardEdge,
+          color: Colors.grey[850],
+          child: Ink(
+            width: 30.0,
+            height: 30.0,
+            child: InkWell(
+              child: Icon(Icons.info, size: 20, color: Theme.of(context).primaryColor,),
+              onTap: () {},
+            ),
+          )
+      );
+    }
+    else
+    { return Container();}
+  }
+
+  Color getColor(Set<MaterialState> states)
+  { return Theme.of(context).primaryColor;}
+
+  void check_all(bool check)
+  {
+    List<vaultContent> ContentList=[]..addAll(vaultContentList);
+    for(int a=0;a<ContentList.length;a++)
+    { ContentList[a].selected=check;}
+    setState(() {
+      vaultContentList=ContentList;
+    });
+    select_mode(check);
+    if(check)
+    { selected_items_counter(ContentList.length);}
+    else
+    { selected_items_counter(0);}
+  }
+
+  late Timer searchOnStoppedTyping=new Timer(Duration(milliseconds:500),()=>{});
+  Widget search_bar_or_options()
+  {
+    if(is_select_mode_on)
+    {
+      return
+      Container(
+        child:  Row(
+          children:<Widget> [
+            Checkbox(
+              fillColor: MaterialStateProperty.resolveWith(getColor),
+              value: select_all_items,
+              onChanged: (bool? value) {
+                check_all(value!);
+                setState(() {
+                  select_all_items = value;
+                });
+              },
+            ),
+            Text(no_of_selected_items.toString(), style: Theme.of(context).textTheme.bodyText2,),
+            Text(" Selected", style: Theme.of(context).textTheme.bodyText1,),
+            Spacer(),
+            rename_button(),
+            SizedBox(width: 5,),
+            Material(
+                elevation: 4.0,
+                shape: CircleBorder(),
+                clipBehavior: Clip.hardEdge,
+                color: Colors.grey[850],
+                child: Ink(
+                  width: 30.0,
+                  height: 30.0,
+                  child: InkWell(
+                    child: Icon(Icons.delete, size: 20, color: Theme.of(context).primaryColor,),
+                    onTap: () {},
+                  ),
+                )
+            ),
+            SizedBox(width: 5,),
+            about_button()
+          ],
+        )
+      );
+    }
+    else
+    {
+      return
+      InkWell
+      (
+        splashColor: Theme.of(context).primaryColorDark,
+        child: TextField(
+          //focusNode: _searchFocusNode,
+          controller: search_textfield_controller,
+          textInputAction: TextInputAction.search,
+          style: Theme.of(context).textTheme.bodyText1,
+          onChanged: (text) {
+            if (searchOnStoppedTyping.isActive)
+            { setState(() => searchOnStoppedTyping.cancel());}
+            setState(() => searchOnStoppedTyping = new Timer(Duration(milliseconds:500), () => search(text)));
+            setState(()
+            { searchText = text;});},
+            decoration: InputDecoration(
+            filled: true,
+            fillColor: Color(0x92575757),
+            suffixIcon: hidingIcon(),
+            contentPadding: new EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+            hintText: searchHint,
+            hintStyle: Theme.of(context).textTheme.bodyText2,
+            enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Theme.of(context).primaryColorDark),
+                borderRadius: BorderRadius.all(Radius.circular(90.0))
+            ),
+            focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Theme.of(context).primaryColor),
+                borderRadius: BorderRadius.all(Radius.circular(90.0))
+            ),
+          ),
+        ),
+        onTap: (){},
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
@@ -321,42 +553,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       }
     }
 
-    Widget hidingIcon()
-    {
-      if (widget.searchText.length > 0)
-      {
-        return IconButton
-        (
-          icon:
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon:Icon(Icons.cancel,color:Theme.of(context).primaryColor),
-            onPressed: (){
-              widget.search_textfield_controller.clear();
-              search("");
-              setState(()
-              { widget.searchText = "";});
-              FocusScope.of(context).unfocus();
-            },
-          ),
-          onPressed: (){},
-        );
-      }
-      else
-      { return SizedBox.shrink();}
-    }
-    
-
-    /*void test() async
-    {
-      List<int> l=await frw.decrypt_and_save_file('', vaultName, password);
-      print("l sixe="+l.length.toString());
-
-      setState(() {
-        bin_list.addAll(l);
-      });
-    }*/
-    
     return Scaffold(
       body:DefaultTabController(
         length: 2,
@@ -365,87 +561,55 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           {
             return [
               SliverAppBar(
-              floating: true,
-              pinned: true,
-              snap:true,
-              backgroundColor: Colors.grey[900],
-              title: Padding(
-                padding: const EdgeInsets.fromLTRB(5, 15, 0, 10),
-                child:InkWell(
-                  splashColor: Theme.of(context).primaryColorDark,
-                  child:
-                  new TextField(
-                    //focusNode: _searchFocusNode,
-                    controller: widget.search_textfield_controller,
-                    textInputAction: TextInputAction.search,
-                    style: Theme.of(context).textTheme.bodyText1,
-                    onChanged: (text) {
-                      search(text);
-                      setState(()
-                      { widget.searchText = text;});},
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Color(0x92575757),
-                      suffixIcon: hidingIcon(),
-                      contentPadding: new EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
-                      hintText: widget.searchHint,
-                      hintStyle: Theme.of(context).textTheme.bodyText2,
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).primaryColorDark),
-                        borderRadius: BorderRadius.all(Radius.circular(90.0))
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).primaryColor),
-                        borderRadius: BorderRadius.all(Radius.circular(90.0))
-                      ),
-                    ),
-                  ),
-                onTap: (){},
-                )
-              ),
-              actions: [
-                PopupMenuButton(
-                    color: Colors.grey[850],
-                    elevation: 40,
-                    icon: Icon(Platform.isAndroid ? Icons.more_vert : Icons.more_horiz,color:Theme.of(context).primaryColor),
-                    onSelected: (value) {
-                      setState(() {
-                        //menuOption = value.toString();
-                        if(value.toString().compareTo("Theme")==0)
-                        {
-                          themeCode=getThemeManager(context).selectedThemeIndex;
-                          return  ThemeDialog.start(context);
-                        }
-                        else if(value.toString().compareTo("About")==0)
-                        { debugPrint("About");
-                          //test();
+                floating: true,
+                pinned: true,
+                snap:true,
+                backgroundColor: Colors.grey[900],
+                title: Padding(
+                  padding: const EdgeInsets.fromLTRB(5, 15, 0, 10),
+                  child:search_bar_or_options()
+                ),
+                actions: [
+                  PopupMenuButton(
+                      color: Colors.grey[850],
+                      elevation: 40,
+                      icon: Icon(Platform.isAndroid ? Icons.more_vert : Icons.more_horiz,color:Theme.of(context).primaryColor),
+                      onSelected: (value) {
+                        setState(() {
+                          //menuOption = value.toString();
+                          if(value.toString().compareTo("Theme")==0)
+                          {
+                            themeCode=getThemeManager(context).selectedThemeIndex;
+                            return  ThemeDialog.start(context);
+                          }
+                          else if(value.toString().compareTo("About")==0)
+                          { debugPrint("About");
 
-                        }
-                      });
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        child: Text("Theme"),
-                        textStyle: TextStyle(color: Theme.of(context).primaryColor),
-                        value: "Theme",
-                      ),
-                      PopupMenuItem(
-                        child: Text("About"),
-                        textStyle: TextStyle(color: Theme.of(context).primaryColor),
-                        value: "About",
-                      )
-                    ]
-                )
-              ],
-
-              bottom:
-              TabBar(
-                tabs: [Tab( text: "Vaults"),Tab( text: "Vault Explorer"),],
-                indicatorColor:Theme.of(context).primaryColor,
-                labelColor: Theme.of(context).primaryColor,
-                unselectedLabelColor: Theme.of(context).primaryColorDark,
-                controller: _tabController,
-              ),
+                          }
+                        });
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          child: Text("Theme"),
+                          textStyle: TextStyle(color: Theme.of(context).primaryColor),
+                          value: "Theme",
+                        ),
+                        PopupMenuItem(
+                          child: Text("About"),
+                          textStyle: TextStyle(color: Theme.of(context).primaryColor),
+                          value: "About",
+                        )
+                      ]
+                  )
+                ],
+                bottom:
+                TabBar(
+                  tabs: [Tab( text: "Vaults"),Tab( text: "Vault Explorer"),],
+                  indicatorColor:Theme.of(context).primaryColor,
+                  labelColor: Theme.of(context).primaryColor,
+                  unselectedLabelColor: Theme.of(context).primaryColorDark,
+                  controller: _tabController,
+                ),
               ),
             ];
           },
@@ -462,8 +626,19 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                 decoration: new BoxDecoration(
                       color: Colors.black
                 ),
-                child: exploreGrid(key:Key(""),vaultContentList:vaultContentList,delete_items: delete_items,extract_items: extract_items,is_vault_open: is_vault_open)
-                //Image.memory(Uint8List.fromList(bin_list))
+                child:
+                exploreGrid
+                (
+                    key:Key(""),
+                    vaultContentList:vaultContentList,
+                    delete_items: delete_items,
+                    extract_items: extract_items,
+                    is_vault_open: is_vault_open,
+                    select_mode: select_mode,
+                    selected_items_counter: selected_items_counter,
+                    get_selected_mode: get_selected_mode,
+                    get_no_of_selected_items: get_no_of_selected_items
+                )
               ),
             ],
           ),

@@ -8,12 +8,33 @@ class vaultContent
   String encryptedFilePath="";
   int iconCode=-1;
   late Image thumbnail;
+  bool selected=false;
+}
+
+class vaultContentBackup
+{
+  int index=0;
+  late vaultContent contentBackup;
 }
 
 class exploreGrid extends StatefulWidget
 {
-  exploreGrid({required Key key,required this.vaultContentList,required this.delete_items,required this.extract_items,required this.is_vault_open}) : super(key: key);
+  exploreGrid(
+    { required Key key,
+      required this.vaultContentList,
+      required this.delete_items,
+      required this.extract_items,
+      required this.is_vault_open,
+      required this.select_mode,
+      required this.selected_items_counter,
+      required this.get_selected_mode,
+      required this.get_no_of_selected_items
+    }) : super(key: key);
   List<vaultContent> vaultContentList;
+  final select_mode;
+  final get_selected_mode;
+  final selected_items_counter;
+  final get_no_of_selected_items;
   final is_vault_open;
   final delete_items;
   final extract_items;
@@ -41,10 +62,7 @@ class exploreGridWidget extends State<exploreGrid> {
                     .of(context)
                     .primaryColor),
                 SizedBox(width: 8,),
-                Text("Delete", style: Theme
-                    .of(context)
-                    .textTheme
-                    .bodyText1,),
+                Text("Delete", style: Theme.of(context).textTheme.bodyText1,),
               ],
             ),
           )
@@ -72,6 +90,41 @@ class exploreGridWidget extends State<exploreGrid> {
     { return Icon(Icons.description, size: 62, color: Theme.of(context).primaryColor,);} //
   }
 
+  void long_press_selected(vaultContent content)
+  {
+    if(!widget.get_selected_mode())
+    {
+      widget.select_mode(true);
+      widget.selected_items_counter(widget.get_no_of_selected_items()+1);
+      setState(() {
+        content.selected = true;
+      });
+    }
+  }
+
+  void tap_selected(vaultContent content)
+  {
+    if(content.selected)
+    {
+      if(widget.get_no_of_selected_items()-1==0)
+      { widget.select_mode(false);}
+      setState(() {
+        content.selected=false;
+      });
+      widget.selected_items_counter(widget.get_no_of_selected_items()-1);
+    }
+    else
+    {
+      if(widget.get_selected_mode())
+      {
+        setState(() {
+          content.selected=true;
+        });
+        widget.selected_items_counter(widget.get_no_of_selected_items()+1);
+      }
+    }
+  }
+
   Widget gridContent(vaultContent content) {
     if (content.iconCode == -1) {
       return Column
@@ -81,6 +134,8 @@ class exploreGridWidget extends State<exploreGrid> {
           Expanded(
             child:Material(
               color: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              clipBehavior: Clip.hardEdge,
               child:
               Ink.image
               (
@@ -88,10 +143,10 @@ class exploreGridWidget extends State<exploreGrid> {
                 fit: BoxFit.cover,
                 child: InkWell(
                   onTap: () {
-                    print('Sure1');
+                    tap_selected(content);
                   },
                   onLongPress: (){
-                    print('Sure2');
+                    long_press_selected(content);
                   },
                 ),
               )
@@ -102,46 +157,50 @@ class exploreGridWidget extends State<exploreGrid> {
     }
     else {
       return
-      Column
-      (
-        children: <Widget>
-        [
-          Expanded(
-            child:Row(
-              children:<Widget>[
-                Expanded(
-                  child:Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child:getIcon(content.iconCode),
-                          ),
-                          SizedBox(height: 5,),
-                          Text(
-                            content.fileName,
-                            style:TextStyle(color:Theme.of(context).primaryColor,fontSize:10),
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.fade,
-                          )
-                        ],
+      Padding(
+        padding: const EdgeInsets.all(5.0),
+        child:
+        Column
+        (
+          children: <Widget>
+          [
+            Expanded(
+              child:Row(
+                children:<Widget>[
+                  Expanded(
+                    child:Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child:getIcon(content.iconCode),
+                            ),
+                            SizedBox(height: 5,),
+                            Text(
+                              content.fileName,
+                              style:TextStyle(color:Theme.of(context).primaryColor,fontSize:10),
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.fade,
+                            )
+                          ],
+                        ),
+                        onTap: () {
+                          tap_selected(content);
+                        },
+                        onLongPress: (){
+                          long_press_selected(content);
+                        },
                       ),
-                      onTap: () {
-                        print('Sure1');
-                      },
-                      onLongPress: (){
-                        print('Sure2');
-                      },
                     ),
-                  ),
-                )
-              ]
-            )
-          ),
-        ]
-      );
+                  )
+                ]
+              )
+            ),
+          ]
+        )
+     );
     }
   }
 
@@ -159,6 +218,7 @@ class exploreGridWidget extends State<exploreGrid> {
     }
     else
     {
+      bool selected=false;
       return
       GestureDetector(
         onTapDown: storePosition,
@@ -173,19 +233,27 @@ class exploreGridWidget extends State<exploreGrid> {
             ),
             itemBuilder: (context, index) {
               return
-              Container(height: 294,
-                decoration:
-                BoxDecoration
-                (
-                    color: Colors.grey[850],
-                    shape: BoxShape.rectangle,
-                    borderRadius: BorderRadius.all(Radius.circular(5))
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(5.0),
-                  child: gridContent(widget.vaultContentList[index]),
-                )
+              Stack(
+                children:<Widget>
+                [
+                  Container(height: 294,
+                    decoration:
+                    BoxDecoration
+                    (
+                      color: Colors.grey[850],
+                      shape: BoxShape.rectangle,
+                      borderRadius: BorderRadius.all(Radius.circular(5)),
+                      border: Border.all(color: widget.vaultContentList[index].selected==false? Colors.transparent : Theme.of(context).primaryColor)
+                    ),
+                    child:
+                    Opacity(
+                        opacity: widget.vaultContentList[index].selected==false? 1: 0.5,
+                        child: gridContent(widget.vaultContentList[index]),
+                    ),
+                  ),
+                ]
               );
+
             },
           )
         )
