@@ -22,8 +22,6 @@ class exploreGrid extends StatefulWidget
   exploreGrid(
     { required Key key,
       required this.vaultContentList,
-      required this.delete_items,
-      required this.extract_items,
       required this.is_vault_open,
       required this.select_mode,
       required this.selected_items_counter,
@@ -36,8 +34,6 @@ class exploreGrid extends StatefulWidget
   final selected_items_counter;
   final get_no_of_selected_items;
   final is_vault_open;
-  final delete_items;
-  final extract_items;
 
   @override
   exploreGridWidget createState() => exploreGridWidget();
@@ -95,7 +91,7 @@ class exploreGridWidget extends State<exploreGrid> {
     if(!widget.get_selected_mode())
     {
       widget.select_mode(true);
-      widget.selected_items_counter(widget.get_no_of_selected_items()+1);
+      widget.selected_items_counter(widget.get_no_of_selected_items()+1,content);
       setState(() {
         content.selected = true;
       });
@@ -111,7 +107,7 @@ class exploreGridWidget extends State<exploreGrid> {
       setState(() {
         content.selected=false;
       });
-      widget.selected_items_counter(widget.get_no_of_selected_items()-1);
+      widget.selected_items_counter(widget.get_no_of_selected_items()-1,content);
     }
     else
     {
@@ -120,7 +116,7 @@ class exploreGridWidget extends State<exploreGrid> {
         setState(() {
           content.selected=true;
         });
-        widget.selected_items_counter(widget.get_no_of_selected_items()+1);
+        widget.selected_items_counter(widget.get_no_of_selected_items()+1,content);
       }
     }
   }

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:filecrypt/database.dart';
 import 'package:filecrypt/exploreGrid.dart';
 import 'package:filecrypt/vaultOpenDialog.dart';
@@ -10,13 +8,16 @@ import 'package:filecrypt/theme_dialog.dart';
 import 'package:filecrypt/vaultGrid.dart';
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/services.dart';
 
+import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:stacked_themes/stacked_themes.dart';
 import 'package:filecrypt/floating_action_button.dart';
 import 'package:filecrypt/file_read_write.dart';
 import 'package:filecrypt/aes.dart';
+import 'package:filecrypt/FileRenameDialog.dart';
 
 Future main() async
 {
@@ -69,7 +70,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   String vaultName="";
 
   List<vaultContent> vaultContentList=[];
-  List<vaultContentBackup> vaultContentBackupList=[];
+  List<vaultContentBackup> vaultContentBackupList=[];//used for searching and holds only the items which are not required to be displayed.
+  List<vaultContent> selectedItems=[];
 
   bool is_select_mode_on=false;
   int no_of_selected_items=0;
@@ -113,6 +115,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   {
     password="";
     vaultName="";
+    selectedItems=[];
     setState(() {
       vaultContentList=[];
       is_select_mode_on=false;
@@ -128,7 +131,13 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
   void add_files_to_vault(List<File> fileList) async
   {
-    List<vaultContent> contentList=await frw.add_files_to_vault(vaultContentList.length,vaultName,password,fileList);
+    search("");
+    int first_id;
+    if(vaultContentList.length==0)
+    { first_id=0;}
+    else
+    { first_id=vaultContentList[vaultContentList.length-1].id+1;}
+    List<vaultContent> contentList=await frw.add_files_to_vault(first_id,vaultName,password,fileList);
 
     setState(() {
       vaultContentList.addAll(contentList);
@@ -138,12 +147,104 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
   void delete_items()
   {
+    Widget cancelButton = TextButton(
+      child: Text("No", style: Theme.of(context).textTheme.bodyText1),
+      onPressed: () {
+        Navigator.of(context).pop();
+      },
+      style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
+    );
+    Widget continueButton = TextButton(
+      child: Text("Yes", style: Theme.of(context).textTheme.bodyText1,),
+      style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
+      onPressed: () {
+        Navigator.of(context).pop();
+        List<vaultContent> contentList=[]..addAll(vaultContentList);
+        for(int a=0;a<selectedItems.length;a++)
+        {
+          frw.delete_vault_file(selectedItems[a].encryptedFilePath);
+          contentList.removeWhere((element) => element.id==selectedItems[a].id);
+        }
+        setState(() {
+          vaultContentList=contentList;
+          no_of_selected_items=0;
+          is_select_mode_on=false;
+        });
+        selectedItems.clear();
+      },
+    );
+    AlertDialog alert = AlertDialog(
+      title: Text("Delete Files", style: Theme.of(context).textTheme.bodyText1),
+      content: Text("Do you want to delete "+selectedItems.length.toString()+" files ?",style: Theme.of(context).textTheme.bodyText2),
+      actions: [
+        cancelButton,
+        continueButton,
+      ],
+      backgroundColor: Colors.grey[850],
+    );
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
+  static const platform = const MethodChannel('flutter.native/helper');
+  void move_file_out() async
+  {
+    print("check1!!!!!!");
+    String color="red";
+    try {
+      final String result = await platform.invokeMethod("changeColor",{ "color": color});
+      //print('RESULT -> $result');
+      //color = result;
+      print("check2!!!!");
+    } on PlatformException catch (e) {
+      print(e);
+    }
+    print("check3!!!!");
+    //var permission = await Permission.manageExternalStorage.status;
+    /*if(await Permission.storage.request().isGranted)
+    {
+      String? result = await FilePicker.platform.getDirectoryPath(dialogTitle: "Move File To..");
+      print("path= "+result!);
+      for(int a=0;a<selectedItems.length;a++)
+      {
+        frw.move_file_out(selectedItems[a],result,password);
+      }
+
+      //selectedItems.clear();
+    }
+    else
+    {
+      Fluttertoast.showToast(
+        msg: "Permission Denied",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }*/
 
   }
 
-  void extract_items()
+  void rename_file(vaultContent content,String newName)
   {
-
+    print("new_name= "+newName);
+    for(int a=0;a<vaultContentList.length;a++)
+    {
+      if(vaultContentList[a].id==content.id)
+      {
+        vaultContent content=frw.rename_vault_file(newName,vaultContentList[a].fileName,vaultContentList[a].encryptedFilePath,vaultName,password);
+        selectedItems=[];
+        setState(() {
+          vaultContentList[a].fileName=content.fileName;
+          vaultContentList[a].encryptedFilePath=content.encryptedFilePath;
+          vaultContentList[a].encryptedFileName=content.encryptedFileName;
+        });
+        check_all(false);
+        break;
+      }
+    }
   }
 
   void openVault(int vault_id,String vault_name,String pass) async
@@ -222,7 +323,12 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       if(vaultContentBackupList.length>0)
       {
         for(int a=vaultContentBackupList.length-1;a>=0;a--)
-        { vaultContentList.insert(vaultContentBackupList[a].index,vaultContentBackupList[a].contentBackup);}
+        {
+          if(vaultContentBackupList[a].index<vaultContentList.length)
+          { vaultContentList.insert(vaultContentBackupList[a].index,vaultContentBackupList[a].contentBackup);}
+          else
+          { vaultContentList.add(vaultContentBackupList[a].contentBackup);}
+        }
         vaultContentBackupList.clear();
       }
       print("len="+vaultContentBackupList.length.toString());
@@ -247,7 +353,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     }
   }
 
-  Widget hidingIcon()
+  Widget cancelIcon()
   {
     if (searchText.length > 0)
     {
@@ -282,11 +388,22 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   bool get_selected_mode()
   { return is_select_mode_on;}
 
-  void selected_items_counter(int nos)
+  void selected_items_counter(int nos,vaultContent content)
   {
+    if(nos>no_of_selected_items)
+    { selectedItems.add(content);}
+    else
+    {
+      for(int a=selectedItems.length-1;a>=0;a--)
+      {
+        if(content.id==selectedItems[a].id)
+        { selectedItems.removeAt(a);}
+      }
+    }
     setState(() {
       no_of_selected_items=nos;
     });
+    print("nos= "+selectedItems.length.toString());
   }
 
   int get_no_of_selected_items()
@@ -307,7 +424,10 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
             height: 30.0,
             child: InkWell(
               child: Icon(Icons.drive_file_rename_outline, size: 20, color: Theme.of(context).primaryColor,),
-              onTap: () {},
+              onTap: ()
+              {
+                FileRenameDialog.start(context,new Key(""),rename_file,selectedItems[0]);
+              },
             ),
           )
       );
@@ -352,9 +472,19 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     });
     select_mode(check);
     if(check)
-    { selected_items_counter(ContentList.length);}
+    {
+      selectedItems=vaultContentList;
+      setState(() {
+        no_of_selected_items=ContentList.length;
+      });
+    }
     else
-    { selected_items_counter(0);}
+    {
+      selectedItems=[];
+      setState(() {
+        no_of_selected_items=0;
+      });
+    }
   }
 
   late Timer searchOnStoppedTyping=new Timer(Duration(milliseconds:500),()=>{});
@@ -391,7 +521,22 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                   height: 30.0,
                   child: InkWell(
                     child: Icon(Icons.delete, size: 20, color: Theme.of(context).primaryColor,),
-                    onTap: () {},
+                    onTap: () { delete_items();},
+                  ),
+                )
+            ),
+            SizedBox(width: 5,),
+            Material(
+                elevation: 4.0,
+                shape: CircleBorder(),
+                clipBehavior: Clip.hardEdge,
+                color: Colors.grey[850],
+                child: Ink(
+                  width: 30.0,
+                  height: 30.0,
+                  child: InkWell(
+                    child: Icon(Icons.drive_file_move, size: 20, color: Theme.of(context).primaryColor,),
+                    onTap: () { move_file_out();},
                   ),
                 )
             ),
@@ -421,7 +566,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
             decoration: InputDecoration(
             filled: true,
             fillColor: Color(0x92575757),
-            suffixIcon: hidingIcon(),
+            suffixIcon: cancelIcon(),
             contentPadding: new EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
             hintText: searchHint,
             hintStyle: Theme.of(context).textTheme.bodyText2,
@@ -495,25 +640,15 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
         }
         // set up the buttons
         Widget cancelButton = TextButton(
-          child: Text("No", style: Theme
-              .of(context)
-              .textTheme
-              .bodyText1),
+          child: Text("No", style: Theme.of(context).textTheme.bodyText1),
           onPressed: () {
             Navigator.of(context).pop();
           },
-          style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme
-              .of(context)
-              .primaryColorDark)),
+          style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
         );
         Widget continueButton = TextButton(
-          child: Text("Yes", style: Theme
-              .of(context)
-              .textTheme
-              .bodyText1,),
-          style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme
-              .of(context)
-              .primaryColorDark)),
+          child: Text("Yes", style: Theme.of(context).textTheme.bodyText1,),
+          style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
           onPressed: () {
             frw.delete_folder(widget.vaultDataList[itemIndex].vaultName);
             ArchiveDatabase.instance.delete(id);
@@ -527,15 +662,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
         // set up the AlertDialog
         AlertDialog alert = AlertDialog(
-          title: Text("Delete Vault", style: Theme
-              .of(context)
-              .textTheme
-              .bodyText1),
+          title: Text("Delete Vault", style: Theme.of(context).textTheme.bodyText1),
           content: Text("Do you want to delete vault '" +
-              widget.vaultDataList[itemIndex].vaultName + "' ?", style: Theme
-              .of(context)
-              .textTheme
-              .bodyText2),
+              widget.vaultDataList[itemIndex].vaultName + "' ?", style: Theme.of(context).textTheme.bodyText2),
           actions: [
             cancelButton,
             continueButton,
@@ -631,8 +760,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                 (
                     key:Key(""),
                     vaultContentList:vaultContentList,
-                    delete_items: delete_items,
-                    extract_items: extract_items,
                     is_vault_open: is_vault_open,
                     select_mode: select_mode,
                     selected_items_counter: selected_items_counter,

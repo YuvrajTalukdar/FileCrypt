@@ -174,15 +174,15 @@ class file_read_write {
     return ext;
   }
 
-  Future<List<vaultContent>> add_files_to_vault(int size,String vaultName,String pass, List<File> fileList) async //ok check
+  Future<List<vaultContent>> add_files_to_vault(int startId,String vaultName,String pass, List<File> fileList) async //ok check
   {
     //Stopwatch watch=new Stopwatch()..start();
     List<vaultContent> contentList=[];
     for(int a=0;a<fileList.length;a++)
     {
       vaultContent content=new vaultContent();
-      content.id=size;
-      size++;
+      content.id=startId;
+      startId++;
       content.fileName=get_name_from_dir(fileList[a].path);
       content.iconCode=get_icon_code(get_ext(content.fileName));
       content.encryptedFileName=base32.encodeString(aes_handler.encrypt(get_name_from_dir(fileList[a].path),pass));
@@ -191,26 +191,62 @@ class file_read_write {
       List<int> decrypted_byte_list=[];
 
       File encryptedFile = File(path);
-      final iterator = ChunkedStreamReader(fileList[a].openRead());
-      while (true)
-      {
-        List<int> lengthBytes = await iterator.readChunk(4096);//4,8,16,1024,2048
-        if (lengthBytes.isEmpty)
-        { break;}
-        decrypted_byte_list.addAll(lengthBytes);
+      if(!(await encryptedFile.exists())) {
+        final iterator = ChunkedStreamReader(fileList[a].openRead());
+        while (true) {
+          List<int> lengthBytes = await iterator.readChunk(4096); //4,8,16,1024,2048
+          if(lengthBytes.isEmpty)
+          { break;}
+          decrypted_byte_list.addAll(lengthBytes);
 
-        String plain_text=base64.encode(lengthBytes);
-        String encrypted_text=aes_handler.encrypt(plain_text, pass);
-        List<int> encrypted_bytes=base64.decode(encrypted_text);
-        encryptedFile.writeAsBytesSync(encrypted_bytes,mode:FileMode.append,flush: false);
-        //print("enc_len= "+encrypted_bytes.length.toString()+" dec_len="+plain_text.length.toString()+" orig_len="+lengthBytes.length.toString());
-        //encryptedFile.writeAsBytesSync(lengthBytes,mode:FileMode.append,flush: false);//for writing non encrypted bytes
+          String plain_text = base64.encode(lengthBytes);
+          String encrypted_text = aes_handler.encrypt(plain_text, pass);
+          List<int> encrypted_bytes = base64.decode(encrypted_text);
+          encryptedFile.writeAsBytesSync(encrypted_bytes, mode: FileMode.append, flush: false);
+          //print("enc_len= "+encrypted_bytes.length.toString()+" dec_len="+plain_text.length.toString()+" orig_len="+lengthBytes.length.toString());
+          //encryptedFile.writeAsBytesSync(lengthBytes,mode:FileMode.append,flush: false);//for writing non encrypted bytes
+        }
+        if (content.iconCode == -1)
+        { content.thumbnail = Image(image: ResizeImage(MemoryImage(Uint8List.fromList(decrypted_byte_list)), width: 80, height: 80));}
+        contentList.add(content);
       }
-      if(content.iconCode==-1)
-      { content.thumbnail=Image(image: ResizeImage(MemoryImage(Uint8List.fromList(decrypted_byte_list)), width: 80, height: 80));}
-      contentList.add(content);
     }
     //print('fx executed in ${watch.elapsed}');
     return contentList;
+  }
+
+  void delete_vault_file(String encrypted_file_path)
+  { File(encrypted_file_path).delete();}
+  
+  vaultContent rename_vault_file(String newName,String oldName,String currentFilePath,String vaultName,String pass)
+  {
+    vaultContent content=new vaultContent();
+    String ext=get_ext(oldName);
+    if(ext.length!=0)
+    { newName=newName+"."+ext;}
+    content.fileName=newName;
+    content.encryptedFileName=base32.encodeString(aes_handler.encrypt(newName,pass));
+    content.encryptedFilePath=localPath+"/"+vaultName+"/"+content.encryptedFileName;
+    File(currentFilePath).rename(content.encryptedFilePath);
+    return content;
+  }
+
+  void move_file_out(vaultContent content,String destination,String pass) async
+  {
+    File decryptedFile = File(destination+"/"+content.fileName);
+    File encryptedFile = File(content.encryptedFilePath);
+    final iterator = ChunkedStreamReader(encryptedFile.openRead());
+    while(true)
+    {
+      List<int> lengthBytes = await iterator.readChunk(5472);//16,16,32,1376,2736
+      if (lengthBytes.isEmpty)
+      { break;}
+      String encrypted_text=base64.encode(lengthBytes);
+      String decrypted_text=aes_handler.decrypt(encrypted_text,pass);
+      //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
+      List<int> decrypted_byte_block=base64.decode(decrypted_text);
+
+      decryptedFile.writeAsBytes(decrypted_byte_block);
+    }
   }
 }
