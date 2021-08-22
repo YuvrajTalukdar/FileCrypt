@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'dart:io';
 
 import 'package:filecrypt/create_vault_dialog.dart';
-import 'package:file_picker/file_picker.dart';
 
 
 class CircularButton extends StatelessWidget {
@@ -29,13 +27,13 @@ class CircularButton extends StatelessWidget {
 
 class floatingActionButton extends StatefulWidget {
   @override
-  floatingActionButton({required this.tabController,required this.add_vault,required this.is_vault_open,required this.closeVault,required this.add_files_to_vault});
+  floatingActionButton({required this.tabController,required this.add_vault,required this.is_vault_open,required this.closeVault,required this.pick_files});
   floatingActionButtonHolder createState() => floatingActionButtonHolder();
   final tabController;
   final add_vault;
   final is_vault_open;
   final closeVault;
-  final add_files_to_vault;
+  final pick_files;
 }
 
 class floatingActionButtonHolder extends State<floatingActionButton> with TickerProviderStateMixin {
@@ -99,16 +97,7 @@ class floatingActionButtonHolder extends State<floatingActionButton> with Ticker
   }
 
   void add_file_folder() async
-  {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if(result != null)
-    {
-      List<File> files = result.paths.map((path) => File(path!)).toList();
-      widget.add_files_to_vault(files);
-    }
-    else
-    {}
-  }
+  { widget.pick_files();}
 
   @override
   Widget build(BuildContext context) {

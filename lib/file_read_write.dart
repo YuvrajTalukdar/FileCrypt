@@ -22,8 +22,9 @@ class file_read_write {
 
   Future<String> get _localPath async//ok check
   {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+    final dir=await getApplicationSupportDirectory();
+    //final directory = await getApplicationDocumentsDirectory();
+    return dir.path;
   }
   
   load_path() async//ok check
@@ -74,7 +75,7 @@ class file_read_write {
     {
       path.create();
     }
-    DateTime now = new DateTime.now();
+    //DateTime now = new DateTime.now();
     final File file = File('${path.path}/passcheck'/*+now.year.toString()+
     now.month.toString()+now.day.toString()+now.hour.toString()+now.minute.toString()+now.second.toString()*/);
     await file.writeAsString(aes_handler.encrypt(pass, pass));
@@ -215,10 +216,10 @@ class file_read_write {
     return contentList;
   }
 
-  void delete_vault_file(String encrypted_file_path)
+  void delete_vault_file(String encrypted_file_path)//ok check
   { File(encrypted_file_path).delete();}
   
-  vaultContent rename_vault_file(String newName,String oldName,String currentFilePath,String vaultName,String pass)
+  vaultContent rename_vault_file(String newName,String oldName,String currentFilePath,String vaultName,String pass)//ok check
   {
     vaultContent content=new vaultContent();
     String ext=get_ext(oldName);
@@ -231,9 +232,16 @@ class file_read_write {
     return content;
   }
 
-  void move_file_out(vaultContent content,String destination,String pass) async
+  Future<void> move_file_out(vaultContent content,String pass) async//ok check
   {
-    File decryptedFile = File(destination+"/"+content.fileName);
+    String destination="uri_to_file";
+    String temp_path=localPath+"/"+destination;
+    Directory path= Directory(temp_path);
+    if(!await path.exists())
+    {
+      path.create();
+    }
+    File decryptedFile = File(temp_path+"/"+content.fileName);
     File encryptedFile = File(content.encryptedFilePath);
     final iterator = ChunkedStreamReader(encryptedFile.openRead());
     while(true)
@@ -246,7 +254,7 @@ class file_read_write {
       //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
       List<int> decrypted_byte_block=base64.decode(decrypted_text);
 
-      decryptedFile.writeAsBytes(decrypted_byte_block);
+      decryptedFile.writeAsBytesSync(decrypted_byte_block,mode:FileMode.append,flush:false);
     }
   }
 }

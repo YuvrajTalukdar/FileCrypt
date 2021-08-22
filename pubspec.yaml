@@ -32,11 +32,11 @@ dependencies:
   sqflite:
   fluttertoast:
   path_provider:
-  file_picker:
   encrypt: ^5.0.1
   crypto: ^3.0.1
   base32: ^2.0.0
   permission_handler:
+  uri_to_file: ^0.1.3
 
 dev_dependencies:
   flutter_test:

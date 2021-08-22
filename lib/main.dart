@@ -10,8 +10,8 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/services.dart';
 
+import 'package:uri_to_file/uri_to_file.dart';//uri
 import 'package:permission_handler/permission_handler.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:stacked_themes/stacked_themes.dart';
 import 'package:filecrypt/floating_action_button.dart';
@@ -77,6 +77,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   int no_of_selected_items=0;
   bool select_all_items=false;
 
+  static const platform = const MethodChannel('flutter.native/helper');
+
   @override
   void initState() {
     super.initState();
@@ -92,6 +94,89 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     frw=file_read_write();
     frw.load_path();
     aes_obj=aes();
+
+    platform.setMethodCallHandler(this.kotlin_method_call_handler);
+  }
+
+  Future<void> kotlin_method_call_handler(MethodCall call) async {
+    switch(call.method) {
+      case "writePermissionStatus":
+        String utterance = call.arguments;
+        if (utterance.compareTo("cancel") == 0) {
+          Fluttertoast.showToast(
+            msg: "Folder not selected.",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+          );
+        }
+        else if (utterance.compareTo("ok") == 0)
+        { move_files_out();}
+        break;
+      case "readPermissionStatus":
+        String encodedPath = call.arguments;
+        String decodedPath = "";
+        List<File> fileList=[];
+        if (encodedPath.length > 0)
+        {
+          for (int a = 0; a < encodedPath.length; a++) {
+            if (encodedPath[a] == '*')
+            {
+              Uri uri = Uri.parse(decodedPath); // Parsing uri string to uri
+              File file = await toFile(uri);
+              fileList.add(file);
+              decodedPath = "";
+            }
+            else
+            { decodedPath=decodedPath+encodedPath[a];}
+          }
+          add_files_to_vault(fileList);
+        }
+        else
+        {
+          Fluttertoast.showToast(
+            msg: "File not selected.",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+          );
+        }
+        break;
+      case "move_file_out_postprocesing":
+        move_file_out_postprocesing();
+        break;
+    }
+  }
+
+  void pick_files()
+  {
+    try
+    { platform.invokeMethod("requestReadPermission");}
+    on PlatformException catch (e)
+    {}
+  }
+
+  void move_file_out_postprocesing()
+  {
+    delete_items();
+    check_all(false);
+    setState(() {
+      select_all_items = false;
+    });
+    frw.delete_folder("uri_to_file");
+    Fluttertoast.showToast(
+      msg: "Files moved out of vault.",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+    );
+  }
+
+  void move_files_out() async
+  {
+    for(int a=0;a<selectedItems.length;a++)
+    { await frw.move_file_out(selectedItems[a],password);}
+    try
+    { platform.invokeMethod("moveFilesOut");}
+    on PlatformException catch (e)
+    {}
   }
 
   void getData() async{
@@ -142,94 +227,27 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     setState(() {
       vaultContentList.addAll(contentList);
     });
-    FilePicker.platform.clearTemporaryFiles();
+    frw.delete_folder("uri_to_file");
   }
 
   void delete_items()
   {
-    Widget cancelButton = TextButton(
-      child: Text("No", style: Theme.of(context).textTheme.bodyText1),
-      onPressed: () {
-        Navigator.of(context).pop();
-      },
-      style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
-    );
-    Widget continueButton = TextButton(
-      child: Text("Yes", style: Theme.of(context).textTheme.bodyText1,),
-      style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
-      onPressed: () {
-        Navigator.of(context).pop();
-        List<vaultContent> contentList=[]..addAll(vaultContentList);
-        for(int a=0;a<selectedItems.length;a++)
-        {
-          frw.delete_vault_file(selectedItems[a].encryptedFilePath);
-          contentList.removeWhere((element) => element.id==selectedItems[a].id);
-        }
-        setState(() {
-          vaultContentList=contentList;
-          no_of_selected_items=0;
-          is_select_mode_on=false;
-        });
-        selectedItems.clear();
-      },
-    );
-    AlertDialog alert = AlertDialog(
-      title: Text("Delete Files", style: Theme.of(context).textTheme.bodyText1),
-      content: Text("Do you want to delete "+selectedItems.length.toString()+" files ?",style: Theme.of(context).textTheme.bodyText2),
-      actions: [
-        cancelButton,
-        continueButton,
-      ],
-      backgroundColor: Colors.grey[850],
-    );
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return alert;
-      },
-    );
-  }
-
-  static const platform = const MethodChannel('flutter.native/helper');
-  void move_file_out() async
-  {
-    print("check1!!!!!!");
-    String color="red";
-    try {
-      final String result = await platform.invokeMethod("changeColor",{ "color": color});
-      //print('RESULT -> $result');
-      //color = result;
-      print("check2!!!!");
-    } on PlatformException catch (e) {
-      print(e);
-    }
-    print("check3!!!!");
-    //var permission = await Permission.manageExternalStorage.status;
-    /*if(await Permission.storage.request().isGranted)
+    List<vaultContent> contentList=[]..addAll(vaultContentList);
+    for(int a=0;a<selectedItems.length;a++)
     {
-      String? result = await FilePicker.platform.getDirectoryPath(dialogTitle: "Move File To..");
-      print("path= "+result!);
-      for(int a=0;a<selectedItems.length;a++)
-      {
-        frw.move_file_out(selectedItems[a],result,password);
-      }
-
-      //selectedItems.clear();
+      frw.delete_vault_file(selectedItems[a].encryptedFilePath);
+      contentList.removeWhere((element) => element.id==selectedItems[a].id);
     }
-    else
-    {
-      Fluttertoast.showToast(
-        msg: "Permission Denied",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-      );
-    }*/
-
+    setState(() {
+      vaultContentList=contentList;
+      no_of_selected_items=0;
+      is_select_mode_on=false;
+    });
+    selectedItems.clear();
   }
 
   void rename_file(vaultContent content,String newName)
   {
-    print("new_name= "+newName);
     for(int a=0;a<vaultContentList.length;a++)
     {
       if(vaultContentList[a].id==content.id)
@@ -242,6 +260,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           vaultContentList[a].encryptedFileName=content.encryptedFileName;
         });
         check_all(false);
+        setState(() {
+          select_all_items = false;
+        });
         break;
       }
     }
@@ -331,7 +352,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
         }
         vaultContentBackupList.clear();
       }
-      print("len="+vaultContentBackupList.length.toString());
       for(int a=vaultContentList.length-1;a>=0;a--)
       {
         if(vaultContentList[a].fileName.toLowerCase().contains(searchText.toLowerCase()) ||
@@ -521,7 +541,39 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                   height: 30.0,
                   child: InkWell(
                     child: Icon(Icons.delete, size: 20, color: Theme.of(context).primaryColor,),
-                    onTap: () { delete_items();},
+                    onTap: ()
+                    {
+                      Widget cancelButton = TextButton(
+                        child: Text("No", style: Theme.of(context).textTheme.bodyText1),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
+                      );
+                      Widget continueButton = TextButton(
+                        child: Text("Yes", style: Theme.of(context).textTheme.bodyText1,),
+                        style: ButtonStyle(overlayColor: MaterialStateProperty.all(Theme.of(context).primaryColorDark)),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          delete_items();
+                        },
+                      );
+                      AlertDialog alert = AlertDialog(
+                        title: Text("Delete Files", style: Theme.of(context).textTheme.bodyText1),
+                        content: Text("Do you want to delete "+selectedItems.length.toString()+" files ?",style: Theme.of(context).textTheme.bodyText2),
+                        actions: [
+                          cancelButton,
+                          continueButton,
+                        ],
+                        backgroundColor: Colors.grey[850],
+                      );
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return alert;
+                        },
+                      );
+                    },
                   ),
                 )
             ),
@@ -536,7 +588,13 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                   height: 30.0,
                   child: InkWell(
                     child: Icon(Icons.drive_file_move, size: 20, color: Theme.of(context).primaryColor,),
-                    onTap: () { move_file_out();},
+                    onTap: ()
+                    {
+                      try
+                      { platform.invokeMethod("requestWritePermission");}
+                      on PlatformException catch (e)
+                      {}
+                    },
                   ),
                 )
             ),
@@ -771,7 +829,13 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           ),
         ),
       ),
-      floatingActionButton:  floatingActionButton(tabController: _tabController,add_vault: add_vault,is_vault_open: is_vault_open,closeVault: closeVault,add_files_to_vault: add_files_to_vault,)
+      floatingActionButton:
+      floatingActionButton(
+        tabController: _tabController,
+        add_vault: add_vault,
+        is_vault_open: is_vault_open,
+        closeVault: closeVault,
+        pick_files:pick_files)
     );
   }
 }

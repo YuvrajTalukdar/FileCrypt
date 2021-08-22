@@ -111,6 +111,14 @@ class DialogContentHolder extends State<CreateVaultDialog>  {
           gravity: ToastGravity.BOTTOM,
       );
     }
+    else if(vaultName.compareTo("uri_to_file")==0)
+    {
+      Fluttertoast.showToast(
+        msg: "The name 'uri_to_file' is not allowed please select another name.",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
     else if(vaultPass.compareTo("")==0)
     {
       Fluttertoast.showToast(
