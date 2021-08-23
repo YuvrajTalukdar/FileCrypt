@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:filecrypt/database.dart';
 import 'package:filecrypt/exploreGrid.dart';
 import 'package:filecrypt/vaultOpenDialog.dart';
@@ -18,6 +20,7 @@ import 'package:filecrypt/floating_action_button.dart';
 import 'package:filecrypt/file_read_write.dart';
 import 'package:filecrypt/aes.dart';
 import 'package:filecrypt/FileRenameDialog.dart';
+import 'package:filecrypt/AboutFile.dart';
 
 Future main() async
 {
@@ -213,6 +216,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       gravity: ToastGravity.BOTTOM,
     );
   }
+
+  Future<Image> getImage(String encrypted_path) async
+  { return Image.memory(Uint8List.fromList(await frw.decrypt_file(encrypted_path, password)));}
 
   void add_files_to_vault(List<File> fileList) async
   {
@@ -470,7 +476,14 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
             height: 30.0,
             child: InkWell(
               child: Icon(Icons.info, size: 20, color: Theme.of(context).primaryColor,),
-              onTap: () {},
+              onTap: ()
+              {
+                AboutFilenDialog.start(
+                    context,new Key(""),
+                    frw.get_file_size(selectedItems[0].encryptedFilePath),
+                    frw.get_file_added_date(selectedItems[0].encryptedFilePath),
+                    selectedItems[0].fileName);
+              },
             ),
           )
       );
@@ -822,7 +835,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                     select_mode: select_mode,
                     selected_items_counter: selected_items_counter,
                     get_selected_mode: get_selected_mode,
-                    get_no_of_selected_items: get_no_of_selected_items
+                    get_no_of_selected_items: get_no_of_selected_items,
+                    getImage:getImage
                 )
               ),
             ],

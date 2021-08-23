@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:filecrypt/ImageViewer.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 class vaultContent
@@ -26,7 +27,8 @@ class exploreGrid extends StatefulWidget
       required this.select_mode,
       required this.selected_items_counter,
       required this.get_selected_mode,
-      required this.get_no_of_selected_items
+      required this.get_no_of_selected_items,
+      required this.getImage
     }) : super(key: key);
   List<vaultContent> vaultContentList;
   final select_mode;
@@ -34,6 +36,7 @@ class exploreGrid extends StatefulWidget
   final selected_items_counter;
   final get_no_of_selected_items;
   final is_vault_open;
+  final getImage;
 
   @override
   exploreGridWidget createState() => exploreGridWidget();
@@ -98,10 +101,12 @@ class exploreGridWidget extends State<exploreGrid> {
     }
   }
 
-  void tap_selected(vaultContent content)
+  bool tap_selected(vaultContent content)
   {
+    bool is_changed=false;
     if(content.selected)
     {
+      is_changed=true;
       if(widget.get_no_of_selected_items()-1==0)
       { widget.select_mode(false);}
       setState(() {
@@ -117,8 +122,18 @@ class exploreGridWidget extends State<exploreGrid> {
           content.selected=true;
         });
         widget.selected_items_counter(widget.get_no_of_selected_items()+1,content);
+        is_changed=true;
       }
     }
+    return is_changed;
+  }
+
+  void openImageViewer(vaultContent content) async
+  {
+    Image image = await widget.getImage(content.encryptedFilePath);
+    Navigator.push(context,
+      MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:image)),
+    );
   }
 
   Widget gridContent(vaultContent content) {
@@ -139,7 +154,8 @@ class exploreGridWidget extends State<exploreGrid> {
                 fit: BoxFit.cover,
                 child: InkWell(
                   onTap: () {
-                    tap_selected(content);
+                    if(!tap_selected(content))
+                    { openImageViewer(content);}
                   },
                   onLongPress: (){
                     long_press_selected(content);
@@ -214,7 +230,7 @@ class exploreGridWidget extends State<exploreGrid> {
     }
     else
     {
-      bool selected=false;
+      //bool selected=false;
       return
       GestureDetector(
         onTapDown: storePosition,

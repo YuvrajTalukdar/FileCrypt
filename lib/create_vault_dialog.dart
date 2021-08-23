@@ -160,7 +160,7 @@ class DialogContentHolder extends State<CreateVaultDialog>  {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child:
-        Container(height: 294,
+        Container(height: 310,//294
         decoration:
           BoxDecoration
           (

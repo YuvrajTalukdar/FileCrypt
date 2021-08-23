@@ -104,11 +104,14 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(5, 15, 0, 10),
                       child:
-                      RichText(
-                        text:
-                        TextSpan(
-                          text: widget.vaultName,
-                          style: Theme.of(context).textTheme.bodyText1,
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,//.horizontal
+                        child:RichText(
+                          text:
+                          TextSpan(
+                            text: widget.vaultName,
+                            style: Theme.of(context).textTheme.bodyText1,
+                          ),
                         ),
                       ),
                     ),

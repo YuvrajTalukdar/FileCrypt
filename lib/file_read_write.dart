@@ -257,4 +257,10 @@ class file_read_write {
       decryptedFile.writeAsBytesSync(decrypted_byte_block,mode:FileMode.append,flush:false);
     }
   }
+
+  double get_file_size(String path)
+  { return File(path).lengthSync().toDouble();}
+
+  DateTime get_file_added_date(String path)
+  { return File(path).lastModifiedSync();}
 }
