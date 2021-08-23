@@ -138,7 +138,9 @@ class file_read_write {
   Future<Image> get_thumbnail(String encryptedFilePath,String pass) async//ok check
   {
     List<int> bytes = await decrypt_file(encryptedFilePath, pass);
-    return Image(image: ResizeImage(MemoryImage(Uint8List.fromList(bytes)), width: 80, height: 80));
+    Image image = Image(image: ResizeImage(MemoryImage(Uint8List.fromList(bytes)), width: 80, height: 80));
+    bytes.clear();
+    return image;
     //return Image.memory(Uint8List.fromList(bytes));
   }
 
@@ -198,7 +200,8 @@ class file_read_write {
           List<int> lengthBytes = await iterator.readChunk(4096); //4,8,16,1024,2048
           if(lengthBytes.isEmpty)
           { break;}
-          decrypted_byte_list.addAll(lengthBytes);
+          if(content.iconCode==-1)
+          { decrypted_byte_list.addAll(lengthBytes);}
 
           String plain_text = base64.encode(lengthBytes);
           String encrypted_text = aes_handler.encrypt(plain_text, pass);
@@ -210,6 +213,7 @@ class file_read_write {
         if (content.iconCode == -1)
         { content.thumbnail = Image(image: ResizeImage(MemoryImage(Uint8List.fromList(decrypted_byte_list)), width: 80, height: 80));}
         contentList.add(content);
+        decrypted_byte_list.clear();
       }
     }
     //print('fx executed in ${watch.elapsed}');
