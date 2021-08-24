@@ -22,6 +22,7 @@ import 'package:filecrypt/file_read_write.dart';
 import 'package:filecrypt/aes.dart';
 import 'package:filecrypt/FileRenameDialog.dart';
 import 'package:filecrypt/AboutFile.dart';
+import 'package:filecrypt/ImageViewer.dart';
 
 Future main() async
 {
@@ -219,6 +220,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       no_of_selected_items=0;
       select_all_items=false;
     });
+    PaintingBinding.instance!.imageCache!.clear();
+    PaintingBinding.instance!.imageCache!.clearLiveImages();
     Fluttertoast.showToast(
       msg: "Vault Locked",
       toastLength: Toast.LENGTH_SHORT,
@@ -226,8 +229,30 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     );
   }
 
-  Future<Image> getImage(String encrypted_path) async
-  { return Image.memory((await file_read_write.decrypt_file(encrypted_path, password)));}
+  static void getImage(List<Object> arguments) async
+  {
+    SendPort sendPort = arguments[0] as SendPort;
+    String encryptedPath = arguments[1] as String;
+    String password = arguments[2] as String;
+    Image image=Image.memory(Uint8List.fromList((await file_read_write.decrypt_file(encryptedPath, password))));
+    sendPort.send(image);
+  }
+
+  late Isolate imageViewerIsolate;
+  void openImageViewer(vaultContent content) async
+  {
+    ReceivePort receivePort = ReceivePort();
+    imageViewerIsolate=await Isolate.spawn((getImage),[receivePort.sendPort,content.encryptedFilePath,password]);
+    receivePort.listen((data) {
+      if(data is Image)
+      {
+        Navigator.push(context,
+          MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:data)),
+        );
+        //imageViewerIsolate.kill();
+      }
+    });
+  }
 
   late Isolate fileAddIsolate;
   void add_files_to_vault(List<File> fileList) async
@@ -319,6 +344,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
             toastLength: Toast.LENGTH_SHORT,
             gravity: ToastGravity.BOTTOM,
           );
+          //openVaultIsolate.kill();
         }
         else if(data is int)
         {
@@ -860,7 +886,7 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                     selected_items_counter: selected_items_counter,
                     get_selected_mode: get_selected_mode,
                     get_no_of_selected_items: get_no_of_selected_items,
-                    getImage:getImage
+                    openImageViewer:openImageViewer
                 )
               ),
             ],

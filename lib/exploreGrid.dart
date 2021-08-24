@@ -28,7 +28,7 @@ class exploreGrid extends StatefulWidget
       required this.selected_items_counter,
       required this.get_selected_mode,
       required this.get_no_of_selected_items,
-      required this.getImage
+      required this.openImageViewer
     }) : super(key: key);
   List<vaultContent> vaultContentList;
   final select_mode;
@@ -36,7 +36,7 @@ class exploreGrid extends StatefulWidget
   final selected_items_counter;
   final get_no_of_selected_items;
   final is_vault_open;
-  final getImage;
+  final openImageViewer;
 
   @override
   exploreGridWidget createState() => exploreGridWidget();
@@ -46,35 +46,7 @@ class exploreGridWidget extends State<exploreGrid> {
 
   var tapPosition;
 
-  void showCustomMenu(int id) {
-    final RenderBox overlay = Overlay.of(context)!.context
-        .findRenderObject() as RenderBox;
-    showMenu(
-        position: RelativeRect.fromRect(
-            tapPosition & Size(40, 40), Offset.zero & overlay.size),
-        items: <PopupMenuEntry>[
-          PopupMenuItem(
-            value: 0,
-            child: Row(
-              children: <Widget>[
-                Icon(Icons.delete, color: Theme
-                    .of(context)
-                    .primaryColor),
-                SizedBox(width: 8,),
-                Text("Delete", style: Theme.of(context).textTheme.bodyText1,),
-              ],
-            ),
-          )
-        ],
-        context: context,
-        color: Colors.grey[850]
-    ).then((value) =>
-    {
-      //widget.delete_vault(id,value.toString())
-    });
-  }
-
-  void storePosition(TapDownDetails details) {
+  void storePosition(TapDownDetails details) {//may be used in future
     tapPosition = details.globalPosition;
   }
 
@@ -128,14 +100,6 @@ class exploreGridWidget extends State<exploreGrid> {
     return is_changed;
   }
 
-  void openImageViewer(vaultContent content) async
-  {
-    Image image = await widget.getImage(content.encryptedFilePath);
-    Navigator.push(context,
-      MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:image)),
-    );
-  }
-
   Widget gridContent(vaultContent content) {
     if (content.iconCode == -1) {
       return Column
@@ -155,7 +119,7 @@ class exploreGridWidget extends State<exploreGrid> {
                 child: InkWell(
                   onTap: () {
                     if(!tap_selected(content))
-                    { openImageViewer(content);}
+                    { widget.openImageViewer(content);}
                   },
                   onLongPress: (){
                     long_press_selected(content);

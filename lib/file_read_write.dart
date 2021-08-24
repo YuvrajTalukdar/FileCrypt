@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:async/async.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:base32/base32.dart';
 import 'package:path_provider/path_provider.dart';
@@ -75,9 +76,7 @@ class file_read_write {
     {
       path.create();
     }
-    //DateTime now = new DateTime.now();
-    final File file = File('${path.path}/passcheck'/*+now.year.toString()+
-    now.month.toString()+now.day.toString()+now.hour.toString()+now.minute.toString()+now.second.toString()*/);
+    final File file = File('${path.path}/passcheck');
     await file.writeAsString(aes.encrypt(pass, pass));
   }
 
@@ -88,11 +87,13 @@ class file_read_write {
     dir.deleteSync(recursive: true);
   }
 
-  static Future<Uint8List> decrypt_file(String path,String pass) async//ok check
+  //static Future<Uint8List> decrypt_file(String path,String pass) async//ok check
+  static Future<List<int>> decrypt_file(String path,String pass) async//ok check
   {
     File encryptedFile = File(path);
     final iterator = ChunkedStreamReader(encryptedFile.openRead());
-    BytesBuilder decrypted_byte_list=BytesBuilder();
+    //BytesBuilder decrypted_byte_list=BytesBuilder();
+    List<int> decrypted_byte_list=[];
     while(true)
     {
       List<int> lengthBytes = await iterator.readChunk(5472);//16,16,32,1376,2736
@@ -101,11 +102,14 @@ class file_read_write {
       String encrypted_text=base64.encode(lengthBytes);
       String decrypted_text=aes.decrypt(encrypted_text,pass);
       //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
-      Uint8List decrypted_byte_block=base64.decode(decrypted_text);
+      //Uint8List decrypted_byte_block=base64.decode(decrypted_text);
+      //List<int> decrypted_byte_block=base64.decode(decrypted_text).toList();
 
-      decrypted_byte_list.add(decrypted_byte_block);
+      //decrypted_byte_list.add(decrypted_byte_block);
+      decrypted_byte_list.addAll(base64.decode(decrypted_text).toList());
     }
-    return decrypted_byte_list.toBytes();
+    //return decrypted_byte_list.toBytes();
+    return decrypted_byte_list;
   }
 
   static int get_icon_code(String ext)//ok check
@@ -137,11 +141,13 @@ class file_read_write {
 
   static Future<Image> get_thumbnail(String encryptedFilePath,String pass) async//ok check
   {
-    Uint8List bytes = await decrypt_file(encryptedFilePath, pass);
-    Image image = Image(image: ResizeImage(MemoryImage(bytes), width: 80, height: 80));
-    //bytes.clear();
+    List<int> bytes = await decrypt_file(encryptedFilePath, pass);
+    Uint8List list=Uint8List.fromList(bytes);
+    MemoryImage memoryImage=MemoryImage(list);
+    Image image = Image(image: ResizeImage(memoryImage, width: 80, height: 80));
+
+    bytes.clear();
     return image;
-    //return Image.memory(Uint8List.fromList(bytes));
   }
 
   static Future<vaultContent> decrypt_file_and_load_data(String path,String pass) async//ok check
