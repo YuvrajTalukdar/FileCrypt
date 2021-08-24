@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 
 class aes
 {
-  String encrypt(String plainText,String pass)
+  static String encrypt(String plainText,String pass)
   {
     var iv = sha256.convert(utf8.encode(pass)).toString().substring(0, 16);// Consider the first 16 bytes of all 64 bytes
     var key = sha256.convert(utf8.encode(pass)).toString().substring(0, 32);// Consider the first 32 bytes of all 64 bytes
@@ -17,7 +17,7 @@ class aes
     return encrypted.base64;
   }
 
-  String decrypt(String payload,String pass)
+  static String decrypt(String payload,String pass)
   {
     try {
       var iv = sha256.convert(utf8.encode(pass)).toString().substring(0, 16); // Consider the first 16 bytes of all 64 bytes

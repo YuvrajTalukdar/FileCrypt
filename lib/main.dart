@@ -10,6 +10,7 @@ import 'package:filecrypt/theme_dialog.dart';
 import 'package:filecrypt/vaultGrid.dart';
 import 'dart:io';
 import 'dart:async';
+import 'dart:isolate';
 import 'package:flutter/services.dart';
 
 import 'package:uri_to_file/uri_to_file.dart';//uri
@@ -67,7 +68,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   late TabController _tabController;
 
   late file_read_write frw;
-  late aes aes_obj;
 
   String password="";
   String vaultName="";
@@ -96,7 +96,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     });
     frw=file_read_write();
     frw.load_path();
-    aes_obj=aes();
 
     platform.setMethodCallHandler(this.kotlin_method_call_handler);
   }
@@ -172,14 +171,24 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     );
   }
 
+  late Isolate fileOutIsolate;
   void move_files_out() async
   {
-    for(int a=0;a<selectedItems.length;a++)
-    { await frw.move_file_out(selectedItems[a],password);}
-    try
-    { platform.invokeMethod("moveFilesOut");}
-    on PlatformException catch (e)
-    {}
+    ReceivePort receivePort= ReceivePort();
+    fileOutIsolate = await Isolate.spawn((file_read_write.move_file_out),[receivePort.sendPort,password,selectedItems,frw.localPath]);
+    receivePort.listen((data) {
+      if(data is String)
+      {
+        try
+        { platform.invokeMethod("moveFilesOut");}
+        on PlatformException catch (e)
+        {}
+      }
+      else if(data is int)
+      {
+
+      }
+    });
   }
 
   void getData() async{
@@ -203,9 +212,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   {
     password="";
     vaultName="";
-    selectedItems=[];
+    selectedItems.clear();
     setState(() {
-      vaultContentList=[];
+      vaultContentList.clear();
       is_select_mode_on=false;
       no_of_selected_items=0;
       select_all_items=false;
@@ -218,8 +227,9 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   }
 
   Future<Image> getImage(String encrypted_path) async
-  { return Image.memory(Uint8List.fromList(await frw.decrypt_file(encrypted_path, password)));}
+  { return Image.memory((await file_read_write.decrypt_file(encrypted_path, password)));}
 
+  late Isolate fileAddIsolate;
   void add_files_to_vault(List<File> fileList) async
   {
     search("");
@@ -228,12 +238,21 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     { first_id=0;}
     else
     { first_id=vaultContentList[vaultContentList.length-1].id+1;}
-    List<vaultContent> contentList=await frw.add_files_to_vault(first_id,vaultName,password,fileList);
+    ReceivePort receivePort= ReceivePort();
+    fileAddIsolate=await Isolate.spawn((file_read_write.add_files_to_vault),[receivePort.sendPort,first_id,vaultName,password,fileList,frw.localPath]);
+    receivePort.listen((data) {
+      if(data is List<vaultContent>) {
+        List<vaultContent> contentList = data;
+        setState(() {
+          vaultContentList.addAll(contentList);
+        });
+        frw.delete_folder("uri_to_file");
+      }
+      else if(data is int)
+      {
 
-    setState(() {
-      vaultContentList.addAll(contentList);
+      }
     });
-    frw.delete_folder("uri_to_file");
   }
 
   void delete_items()
@@ -274,32 +293,37 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     }
   }
 
+  late Isolate openVaultIsolate;
   void openVault(int vault_id,String vault_name,String pass) async
   {
     File passCheckFile = File(frw.localPath+"/"+vault_name+"/passcheck");
     String text = await passCheckFile.readAsString();
-    text=aes_obj.decrypt(text,pass);
+    text=aes.decrypt(text,pass);
 
     if(text.compareTo(pass)==0)
     {
-      List<PathInfo> pathinfoList=frw.get_path_list(frw.localPath+"/"+vault_name);
       password=pass;
       vaultName=vault_name;
       FocusScope.of(context).unfocus();
-      //decrypt data
-      List<vaultContent> contentList=[];
-      for(int a=0;a<pathinfoList.length;a++)
-      {
-        if(pathinfoList[a].name.compareTo("passcheck")!=0)
+      ReceivePort receivePort= ReceivePort();
+      openVaultIsolate = await Isolate.spawn((file_read_write.openVault),[receivePort.sendPort,vaultName,frw.localPath,password]);
+      receivePort.listen((data) {
+        if(data is List<vaultContent>)
         {
-          vaultContent content=await frw.decrypt_file_and_load_data(pathinfoList[a].path, password);
-          content.encryptedFilePath=pathinfoList[a].path;
-          content.id=contentList.length;
-          contentList.add(content);
+          List<vaultContent> contentList=data;
+          setState(() {
+            vaultContentList=contentList;
+          });
+          Fluttertoast.showToast(
+            msg: "Vault Unlocked",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+          );
         }
-      }
-      setState(() {
-        vaultContentList=contentList;
+        else if(data is int)
+        {
+
+        }
       });
 
       return Navigator.of(context).pop(true);

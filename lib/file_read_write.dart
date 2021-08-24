@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:filecrypt/aes.dart';
 import 'package:filecrypt/exploreGrid.dart';
 
+import 'dart:isolate';
+
 class PathInfo
 {
   String path="",name="";
@@ -18,7 +20,6 @@ class PathInfo
 
 class file_read_write {
   String localPath="";
-  late aes aes_handler;
 
   Future<String> get _localPath async//ok check
   {
@@ -30,10 +31,9 @@ class file_read_write {
   load_path() async//ok check
   {
     localPath=await _localPath;
-    aes_handler = aes();
   }
 
-  String get_name_from_dir(String path) //ok check
+  static String get_name_from_dir(String path) //ok check
   {
     String name = "";
     for (int a = path.length - 1; a >= 0; a--) {
@@ -47,7 +47,7 @@ class file_read_write {
     return name;
   }
 
-  List<PathInfo> get_path_list(String path) //ok check
+  static List<PathInfo> get_path_list(String path) //ok check
   {
     var dir = new Directory(path);
     List contents = dir.listSync();
@@ -78,7 +78,7 @@ class file_read_write {
     //DateTime now = new DateTime.now();
     final File file = File('${path.path}/passcheck'/*+now.year.toString()+
     now.month.toString()+now.day.toString()+now.hour.toString()+now.minute.toString()+now.second.toString()*/);
-    await file.writeAsString(aes_handler.encrypt(pass, pass));
+    await file.writeAsString(aes.encrypt(pass, pass));
   }
 
   void delete_folder(String folderName)//ok check
@@ -88,27 +88,27 @@ class file_read_write {
     dir.deleteSync(recursive: true);
   }
 
-  Future<List<int>> decrypt_file(String path,String pass) async//ok check
+  static Future<Uint8List> decrypt_file(String path,String pass) async//ok check
   {
     File encryptedFile = File(path);
     final iterator = ChunkedStreamReader(encryptedFile.openRead());
-    List<int> decrypted_byte_list=[];
+    BytesBuilder decrypted_byte_list=BytesBuilder();
     while(true)
     {
       List<int> lengthBytes = await iterator.readChunk(5472);//16,16,32,1376,2736
       if (lengthBytes.isEmpty)
       { break;}
       String encrypted_text=base64.encode(lengthBytes);
-      String decrypted_text=aes_handler.decrypt(encrypted_text,pass);
+      String decrypted_text=aes.decrypt(encrypted_text,pass);
       //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
-      List<int> decrypted_byte_block=base64.decode(decrypted_text);
+      Uint8List decrypted_byte_block=base64.decode(decrypted_text);
 
-      decrypted_byte_list.addAll(decrypted_byte_block);
+      decrypted_byte_list.add(decrypted_byte_block);
     }
-    return decrypted_byte_list;
+    return decrypted_byte_list.toBytes();
   }
 
-  int get_icon_code(String ext)//ok check
+  static int get_icon_code(String ext)//ok check
   {
     if(ext.length!=0) {
       if (ext.toLowerCase().compareTo("jpeg") == 0 ||
@@ -135,20 +135,20 @@ class file_read_write {
     { return -2;}//may need to change
   }
 
-  Future<Image> get_thumbnail(String encryptedFilePath,String pass) async//ok check
+  static Future<Image> get_thumbnail(String encryptedFilePath,String pass) async//ok check
   {
-    List<int> bytes = await decrypt_file(encryptedFilePath, pass);
-    Image image = Image(image: ResizeImage(MemoryImage(Uint8List.fromList(bytes)), width: 80, height: 80));
-    bytes.clear();
+    Uint8List bytes = await decrypt_file(encryptedFilePath, pass);
+    Image image = Image(image: ResizeImage(MemoryImage(bytes), width: 80, height: 80));
+    //bytes.clear();
     return image;
     //return Image.memory(Uint8List.fromList(bytes));
   }
 
-  Future<vaultContent> decrypt_file_and_load_data(String path,String pass) async//ok check
+  static Future<vaultContent> decrypt_file_and_load_data(String path,String pass) async//ok check
   {
     vaultContent content=vaultContent();
     content.encryptedFileName=get_name_from_dir(path);
-    content.fileName=aes_handler.decrypt(base32.decodeAsString(content.encryptedFileName),pass);
+    content.fileName=aes.decrypt(base32.decodeAsString(content.encryptedFileName),pass);
 
     content.iconCode=get_icon_code(get_ext(content.fileName));
     if(content.iconCode==-1)
@@ -157,7 +157,32 @@ class file_read_write {
     return content;
   }
 
-  String get_ext(String file_name)//ok check
+  static void openVault(List<Object> arguments) async
+  {
+    SendPort sendPort = arguments[0] as SendPort;
+    String vaultName = arguments[1] as String;
+    String localPath2 = arguments[2] as String;
+    String password = arguments[3] as String;
+
+    List<PathInfo> pathinfoList=get_path_list(localPath2+"/"+vaultName);
+
+    //decrypt data
+    List<vaultContent> contentList=[];
+    for(int a=0;a<pathinfoList.length;a++)
+    {
+      if(pathinfoList[a].name.compareTo("passcheck")!=0)
+      {
+        vaultContent content=await decrypt_file_and_load_data(pathinfoList[a].path, password);
+        content.encryptedFilePath=pathinfoList[a].path;
+        content.id=contentList.length;
+        contentList.add(content);
+      }
+      sendPort.send(a+1);
+    }
+    sendPort.send(contentList);
+  }
+
+  static String get_ext(String file_name)//ok check
   {
     bool ext_found=false;
     String ext="";
@@ -177,9 +202,14 @@ class file_read_write {
     return ext;
   }
 
-  Future<List<vaultContent>> add_files_to_vault(int startId,String vaultName,String pass, List<File> fileList) async //ok check
+  static add_files_to_vault(List<Object> arguments) async
   {
-    //Stopwatch watch=new Stopwatch()..start();
+    SendPort sendPort = arguments[0] as SendPort;
+    int startId=arguments[1] as int;
+    String vaultName = arguments[2] as String;
+    String pass = arguments[3] as String;
+    List<File> fileList = arguments[4] as List<File>;
+    String localPath2 = arguments[5] as String;
     List<vaultContent> contentList=[];
     for(int a=0;a<fileList.length;a++)
     {
@@ -188,8 +218,9 @@ class file_read_write {
       startId++;
       content.fileName=get_name_from_dir(fileList[a].path);
       content.iconCode=get_icon_code(get_ext(content.fileName));
-      content.encryptedFileName=base32.encodeString(aes_handler.encrypt(get_name_from_dir(fileList[a].path),pass));
-      String path=localPath+"/"+vaultName+"/"+content.encryptedFileName;
+      content.encryptedFileName=base32.encodeString(aes.encrypt(get_name_from_dir(fileList[a].path),pass));
+
+      String path=localPath2+"/"+vaultName+"/"+content.encryptedFileName;
       content.encryptedFilePath=path;
       List<int> decrypted_byte_list=[];
 
@@ -204,7 +235,7 @@ class file_read_write {
           { decrypted_byte_list.addAll(lengthBytes);}
 
           String plain_text = base64.encode(lengthBytes);
-          String encrypted_text = aes_handler.encrypt(plain_text, pass);
+          String encrypted_text = aes.encrypt(plain_text, pass);
           List<int> encrypted_bytes = base64.decode(encrypted_text);
           encryptedFile.writeAsBytesSync(encrypted_bytes, mode: FileMode.append, flush: false);
           //print("enc_len= "+encrypted_bytes.length.toString()+" dec_len="+plain_text.length.toString()+" orig_len="+lengthBytes.length.toString());
@@ -215,9 +246,10 @@ class file_read_write {
         contentList.add(content);
         decrypted_byte_list.clear();
       }
+      sendPort.send(a+1);
     }
     //print('fx executed in ${watch.elapsed}');
-    return contentList;
+    sendPort.send(contentList);
   }
 
   void delete_vault_file(String encrypted_file_path)//ok check
@@ -230,36 +262,43 @@ class file_read_write {
     if(ext.length!=0)
     { newName=newName+"."+ext;}
     content.fileName=newName;
-    content.encryptedFileName=base32.encodeString(aes_handler.encrypt(newName,pass));
+    content.encryptedFileName=base32.encodeString(aes.encrypt(newName,pass));
     content.encryptedFilePath=localPath+"/"+vaultName+"/"+content.encryptedFileName;
     File(currentFilePath).rename(content.encryptedFilePath);
     return content;
   }
 
-  Future<void> move_file_out(vaultContent content,String pass) async//ok check
+  static void move_file_out(List<Object> arguments) async//ok check
   {
+    SendPort sendPort = arguments[0] as SendPort;
+    String pass = arguments[1] as String;
+    List<vaultContent> fileList = arguments[2] as List<vaultContent>;
+    String localPath2 = arguments[3] as String;
     String destination="uri_to_file";
-    String temp_path=localPath+"/"+destination;
+    String temp_path=localPath2+"/"+destination;
     Directory path= Directory(temp_path);
     if(!await path.exists())
     {
       path.create();
     }
-    File decryptedFile = File(temp_path+"/"+content.fileName);
-    File encryptedFile = File(content.encryptedFilePath);
-    final iterator = ChunkedStreamReader(encryptedFile.openRead());
-    while(true)
+    for(int a=0;a<fileList.length;a++)
     {
-      List<int> lengthBytes = await iterator.readChunk(5472);//16,16,32,1376,2736
-      if (lengthBytes.isEmpty)
-      { break;}
-      String encrypted_text=base64.encode(lengthBytes);
-      String decrypted_text=aes_handler.decrypt(encrypted_text,pass);
-      //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
-      List<int> decrypted_byte_block=base64.decode(decrypted_text);
-
-      decryptedFile.writeAsBytesSync(decrypted_byte_block,mode:FileMode.append,flush:false);
+      File decryptedFile = File(temp_path + "/" + fileList[a].fileName);
+      File encryptedFile = File(fileList[a].encryptedFilePath);
+      final iterator = ChunkedStreamReader(encryptedFile.openRead());
+      while (true) {
+        List<int> lengthBytes = await iterator.readChunk(5472); //16,16,32,1376,2736
+        if (lengthBytes.isEmpty)
+        { break;}
+        String encrypted_text = base64.encode(lengthBytes);
+        String decrypted_text = aes.decrypt(encrypted_text, pass);
+        //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
+        List<int> decrypted_byte_block = base64.decode(decrypted_text);
+        decryptedFile.writeAsBytesSync(decrypted_byte_block, mode: FileMode.append, flush: false);
+        sendPort.send(a+1);
+      }
     }
+    sendPort.send("complete");
   }
 
   double get_file_size(String path)
