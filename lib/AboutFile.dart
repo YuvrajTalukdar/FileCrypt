@@ -35,7 +35,7 @@ class DialogContentHolder extends State<aboutFilenDialog>  {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child:
-        Container(height: 310,
+        Container(//height: 310,
           decoration:
           BoxDecoration
             (
@@ -46,6 +46,7 @@ class DialogContentHolder extends State<aboutFilenDialog>  {
           child:
           Column
             (
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>
             [
               Container
@@ -213,7 +214,8 @@ class DialogContentHolder extends State<aboutFilenDialog>  {
                   ),
                   SizedBox(width: 10,),
                 ],
-              )
+              ),
+              SizedBox(height: 10,),
             ],
           ),
         ),

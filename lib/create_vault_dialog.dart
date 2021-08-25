@@ -160,7 +160,7 @@ class DialogContentHolder extends State<CreateVaultDialog>  {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child:
-        Container(height: 310,//294
+        Container(//height: 310,//294
         decoration:
           BoxDecoration
           (
@@ -171,6 +171,7 @@ class DialogContentHolder extends State<CreateVaultDialog>  {
         child:
           Column
           (
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>
             [
               Container
@@ -320,7 +321,8 @@ class DialogContentHolder extends State<CreateVaultDialog>  {
                   ),
                   SizedBox(width: 10,),
                 ],
-              )
+              ),
+              SizedBox(height: 10,),
             ],
           ),
         ),

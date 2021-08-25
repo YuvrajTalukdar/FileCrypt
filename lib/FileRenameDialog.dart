@@ -61,7 +61,7 @@ class DialogContentHolder extends State<fileRenameDialog>  {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child:
-        Container(height: 235,
+        Container(//height: 235,
           decoration:
           BoxDecoration
             (
@@ -72,6 +72,7 @@ class DialogContentHolder extends State<fileRenameDialog>  {
           child:
           Column
             (
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>
             [
               Container
@@ -188,7 +189,8 @@ class DialogContentHolder extends State<fileRenameDialog>  {
                   ),
                   SizedBox(width: 10,),
                 ],
-              )
+              ),
+              SizedBox(height: 10,),
             ],
           ),
         ),

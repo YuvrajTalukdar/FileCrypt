@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 ThemeData get redTheme{
   return ThemeData(
-    primaryColor: Color(0xffff0000),
+    primaryColor: Color(0xffed3f08),
     primaryColorDark: Color(0xff7e0000),
     backgroundColor: Colors.black,
     scaffoldBackgroundColor: Colors.black,
@@ -77,15 +77,15 @@ ThemeData get blueTheme{
 
 ThemeData get violetTheme{
   return ThemeData(
-    primaryColor: Color(0xff875cdc),
-    primaryColorDark: Color(0xff4c1ca5),
-    splashColor: Color(0xff814bdc),
+    primaryColor: Color(0xffa865fe),
+    primaryColorDark: Color(0xff6d3cc9),
+    splashColor: Color(0xffb198db),
     backgroundColor: Colors.black,
     scaffoldBackgroundColor: Colors.black,
     textTheme: TextTheme(
-        headline1: TextStyle(color:Color(0xff875cdc),fontSize: 18),
-        bodyText1: TextStyle(color:Color(0xff6738b9),fontSize: 18),
-        bodyText2: TextStyle(color:Color(0xff8646b4),fontSize: 18)
+        headline1: TextStyle(color:Color(0xffb29bd4),fontSize: 18),
+        bodyText1: TextStyle(color:Color(0xffac5eff),fontSize: 18),
+        bodyText2: TextStyle(color:Color(0xffc232ff),fontSize: 18)
     ),
     /*checkboxTheme:  CheckboxThemeData(
       fillColor: MaterialStateColor.resolveWith(

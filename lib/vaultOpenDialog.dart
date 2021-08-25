@@ -61,7 +61,7 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child:
-        Container(height: 235,
+        Container(//height: 235,
           decoration:
           BoxDecoration
             (
@@ -72,6 +72,7 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
           child:
           Column
             (
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>
             [
               Container
@@ -160,7 +161,6 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
               Row
               (
                 mainAxisSize: MainAxisSize.min,
-                //crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>
                 [
                   SizedBox(width: 10,),
@@ -192,7 +192,8 @@ class DialogContentHolder extends State<vaultOpenDialog>  {
                   ),
                   SizedBox(width: 10,),
                 ],
-              )
+              ),
+              SizedBox(height: 10,),
             ],
           ),
         ),

@@ -19,6 +19,13 @@ class PathInfo
   bool is_dir=false;
 }
 
+class progressBarData
+{
+  int total=0;
+  int complete=0;
+  double progressVal=0;
+}
+
 class file_read_write {
   String localPath="";
 
@@ -171,19 +178,22 @@ class file_read_write {
     String password = arguments[3] as String;
 
     List<PathInfo> pathinfoList=get_path_list(localPath2+"/"+vaultName);
-
     //decrypt data
+    //progressBarData progress=progressBarData();
+    //progress.total=pathinfoList.length;
     List<vaultContent> contentList=[];
     for(int a=0;a<pathinfoList.length;a++)
     {
       if(pathinfoList[a].name.compareTo("passcheck")!=0)
       {
-        vaultContent content=await decrypt_file_and_load_data(pathinfoList[a].path, password);
+        vaultContent content=await decrypt_file_and_load_data(pathinfoList[a].path,password);
         content.encryptedFilePath=pathinfoList[a].path;
         content.id=contentList.length;
         contentList.add(content);
       }
-      sendPort.send(a+1);
+      //progress.progressVal=(a+1).toDouble()/(pathinfoList.length).toDouble();
+      //progress.complete=a+1;
+      //sendPort.send(progress);
     }
     sendPort.send(contentList);
   }
@@ -252,7 +262,7 @@ class file_read_write {
         contentList.add(content);
         decrypted_byte_list.clear();
       }
-      sendPort.send(a+1);
+      //sendPort.send(a+1);
     }
     //print('fx executed in ${watch.elapsed}');
     sendPort.send(contentList);
@@ -301,7 +311,7 @@ class file_read_write {
         //print("enc_len1= "+lengthBytes.length.toString()+" dec_len1="+decrypted_text.length.toString());
         List<int> decrypted_byte_block = base64.decode(decrypted_text);
         decryptedFile.writeAsBytesSync(decrypted_byte_block, mode: FileMode.append, flush: false);
-        sendPort.send(a+1);
+        //sendPort.send(a+1);
       }
     }
     sendPort.send("complete");

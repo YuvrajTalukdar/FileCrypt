@@ -23,6 +23,7 @@ import 'package:filecrypt/aes.dart';
 import 'package:filecrypt/FileRenameDialog.dart';
 import 'package:filecrypt/AboutFile.dart';
 import 'package:filecrypt/ImageViewer.dart';
+import 'package:filecrypt/AboutDialog.dart';
 
 Future main() async
 {
@@ -170,6 +171,30 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
     );
+    Navigator.of(context).pop(true);
+  }
+
+  String progressMsg="";
+  void progressCircle()
+  {
+    AlertDialog alert = AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          CircularProgressIndicator(color: Theme.of(context).primaryColor,),
+          SizedBox(height: 15,),
+          Text(progressMsg,style: Theme.of(context).textTheme.bodyText2),
+        ],
+      ),
+      backgroundColor: Colors.grey[850],
+    );
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
   }
 
   late Isolate fileOutIsolate;
@@ -190,6 +215,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
       }
     });
+    progressMsg="Moving Files Out";
+    progressCircle();
   }
 
   void getData() async{
@@ -243,9 +270,12 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
   {
     ReceivePort receivePort = ReceivePort();
     imageViewerIsolate=await Isolate.spawn((getImage),[receivePort.sendPort,content.encryptedFilePath,password]);
+    progressMsg="Loading";
+    progressCircle();
     receivePort.listen((data) {
       if(data is Image)
       {
+        Navigator.pop(context);
         Navigator.push(context,
           MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:data)),
         );
@@ -272,12 +302,15 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           vaultContentList.addAll(contentList);
         });
         frw.delete_folder("uri_to_file");
+        Navigator.of(context).pop(true);
       }
       else if(data is int)
       {
 
       }
     });
+    progressMsg="Adding Files";
+    progressCircle();
   }
 
   void delete_items()
@@ -344,15 +377,17 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
             toastLength: Toast.LENGTH_SHORT,
             gravity: ToastGravity.BOTTOM,
           );
+          Navigator.of(context).pop();
           //openVaultIsolate.kill();
         }
-        else if(data is int)
+        else if(data is progressBarData)
         {
 
         }
       });
-
-      return Navigator.of(context).pop(true);
+      Navigator.of(context).pop(true);
+      progressMsg="Opening Vault";
+      progressCircle();
     }
     else
     {
@@ -833,8 +868,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
                             return  ThemeDialog.start(context);
                           }
                           else if(value.toString().compareTo("About")==0)
-                          { debugPrint("About");
-
+                          {
+                            AboutDialogApp.start(context,Key(""));
                           }
                         });
                       },
