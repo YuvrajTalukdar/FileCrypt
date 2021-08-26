@@ -173,11 +173,8 @@ class file_read_write {
   static void openVault(List<Object> arguments) async
   {
     SendPort sendPort = arguments[0] as SendPort;
-    String vaultName = arguments[1] as String;
-    String localPath2 = arguments[2] as String;
-    String password = arguments[3] as String;
-
-    List<PathInfo> pathinfoList=get_path_list(localPath2+"/"+vaultName);
+    String password = arguments[1] as String;
+    List<PathInfo> pathinfoList=arguments[2] as List<PathInfo>;
     //decrypt data
     //progressBarData progress=progressBarData();
     //progress.total=pathinfoList.length;

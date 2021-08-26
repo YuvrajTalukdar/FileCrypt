@@ -263,16 +263,18 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
   void move_files_out() async
   {
+    progressMsg="Moving Files Out";
+    progressCircle();
     Stopwatch watch=Stopwatch()..start();
     int size_of_one_list=(selectedItems.length/no_of_threads).toInt();
     List<List<vaultContent>> list_of_selectedItemList=[];
     //print("list_size="+size_of_one_list.toString());
     int listLen=selectedItems.length;
     for(int a=0;a<no_of_threads;a++)
-    { print("a="+a.toString());
+    { //print("a="+a.toString());
       List<vaultContent> new_file_list=[];
       for(int b=listLen-1;b>=listLen-size_of_one_list;b--)
-      {   print("b="+b.toString()+" less="+(listLen-size_of_one_list).toString());
+      { //print("b="+b.toString()+" less="+(listLen-size_of_one_list).toString());
         new_file_list.add(selectedItems[b]);
       }
       listLen-=size_of_one_list;
@@ -296,9 +298,14 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
           if(no_of_complete_thread==no_of_threads)
           {
             try
-            { platform.invokeMethod("moveFilesOut");}
+            {
+              platform.invokeMethod("moveFilesOut");
+              PaintingBinding.instance!.imageCache!.clear();
+              PaintingBinding.instance!.imageCache!.clearLiveImages();
+            }
             on PlatformException catch (e)
             {}
+            no_of_complete_thread=0;
             list_of_selectedItemList.clear();
             print('fx executed in ${watch.elapsed}');
           }
@@ -309,14 +316,14 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
         }
       });
     }
-    progressMsg="Moving Files Out";
-    progressCircle();
   }
 
   int no_of_threads=4;
   int no_of_complete_thread=0;
   void add_files_to_vault(List<File> fileList) async
   {
+    progressMsg="Adding Files";
+    progressCircle();
     Stopwatch watch=Stopwatch()..start();
     search("");
     int size_of_one_list=(fileList.length/no_of_threads).toInt();
@@ -374,8 +381,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       });
       first_id+=size_of_one_list;
     }
-    progressMsg="Adding Files";
-    progressCircle();
   }
 
   void delete_items()
@@ -416,43 +421,73 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     }
   }
 
-  late Isolate openVaultIsolate;
   void openVault(int vault_id,String vault_name,String pass) async
   {
+    Navigator.of(context).pop();
+    progressMsg="Opening Vault";
+    progressCircle();
     File passCheckFile = File(frw.localPath+"/"+vault_name+"/passcheck");
     String text = await passCheckFile.readAsString();
     text=aes.decrypt(text,pass);
-
     if(text.compareTo(pass)==0)
     {
+      Stopwatch watch=Stopwatch()..start();
       password=pass;
       vaultName=vault_name;
       FocusScope.of(context).unfocus();
-      ReceivePort receivePort= ReceivePort();
-      openVaultIsolate = await Isolate.spawn((file_read_write.openVault),[receivePort.sendPort,vaultName,frw.localPath,password]);
-      receivePort.listen((data) {
-        if(data is List<vaultContent>)
-        {
-          List<vaultContent> contentList=data;
-          setState(() {
-            vaultContentList=contentList;
-          });
-          Fluttertoast.showToast(
-            msg: "Vault Unlocked",
-            toastLength: Toast.LENGTH_SHORT,
-            gravity: ToastGravity.BOTTOM,
-          );
-          Navigator.of(context).pop();
-          //openVaultIsolate.kill();
+      List<PathInfo> pathinfoList=file_read_write.get_path_list(frw.localPath+"/"+vaultName);
+      int size_of_one_list=(pathinfoList.length/no_of_threads).toInt();
+      List<List<PathInfo>> list_of_pathInfoList=[];
+      //print("list_size="+size_of_one_list.toString());
+      int listLen=pathinfoList.length;
+      for(int a=0;a<no_of_threads;a++)
+      { //print("a="+a.toString());
+        List<PathInfo> new_file_list=[];
+        for(int b=pathinfoList.length-1;b>=listLen-size_of_one_list;b--)
+        { //print("b="+b.toString()+" less="+(listLen-size_of_one_list).toString());
+          new_file_list.add(pathinfoList.removeAt(b));
         }
-        else if(data is progressBarData)
+        listLen-=size_of_one_list;
+        list_of_pathInfoList.add(new_file_list);
+      }
+      if(pathinfoList.length>0)
+      {
+        for(int a=0;a<pathinfoList.length;a++)
         {
+          list_of_pathInfoList[list_of_pathInfoList.length-1].add(pathinfoList[a]);
+        }
+        pathinfoList.clear();
+      }
 
-        }
-      });
-      Navigator.of(context).pop(true);
-      progressMsg="Opening Vault";
-      progressCircle();
+      for(int a=0;a<list_of_pathInfoList.length;a++)
+      {
+        ReceivePort receivePort= new ReceivePort();
+        await Isolate.spawn((file_read_write.openVault),[receivePort.sendPort,password,list_of_pathInfoList[a]]);
+        receivePort.listen((data) {
+          if(data is List<vaultContent>) {
+            List<vaultContent> contentList = data;
+            setState(() {
+              vaultContentList.addAll(contentList);
+            });
+            no_of_complete_thread++;
+            if(no_of_complete_thread==no_of_threads)
+            {
+              Fluttertoast.showToast(
+                msg: "Vault Unlocked",
+                toastLength: Toast.LENGTH_SHORT,
+                gravity: ToastGravity.BOTTOM,
+              );
+              no_of_complete_thread=0;
+              Navigator.of(context).pop();
+              print('fx executed in ${watch.elapsed}');
+            }
+          }
+          else if(data is int)
+          {
+
+          }
+        });
+      }
     }
     else
     {
@@ -573,12 +608,24 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       for(int a=selectedItems.length-1;a>=0;a--)
       {
         if(content.id==selectedItems[a].id)
-        { selectedItems.removeAt(a);}
+        { selectedItems.removeAt(a);break;}
       }
     }
     setState(() {
       no_of_selected_items=nos;
     });
+    if(selectedItems.length!=vaultContentList.length && select_all_items)
+    {
+      setState(() {
+        select_all_items=false;
+      });
+    }
+    else if(selectedItems.length==vaultContentList.length && !select_all_items)
+    {
+      setState(() {
+        select_all_items=true;
+      });
+    }
     print("nos= "+selectedItems.length.toString());
   }
 
@@ -656,7 +703,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     select_mode(check);
     if(check)
     {
-      selectedItems=vaultContentList;
+      selectedItems.clear();
+      selectedItems=[]..addAll(ContentList);
       setState(() {
         no_of_selected_items=ContentList.length;
       });
