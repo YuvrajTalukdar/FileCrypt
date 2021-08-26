@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:flutter/services.dart';
-import 'package:stacked_themes/stacked_themes.dart';
-import 'package:filecrypt/theme.dart';
 
 class ImageViewer extends StatefulWidget {
   ImageViewer({required Key key,required this.imageName,required this.image}) : super(key: key);
@@ -20,6 +17,13 @@ class HomeState extends State<ImageViewer> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    //PaintingBinding.instance!.imageCache!.clear();
+    //PaintingBinding.instance!.imageCache!.clearLiveImages();
+    super.dispose();
   }
 
   @override

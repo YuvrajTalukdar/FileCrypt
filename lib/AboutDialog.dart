@@ -89,7 +89,10 @@ class DialogContentHolder extends State<aboutDialog>  {
                 ),
               ),
               SizedBox(height: 10,),
-              Image.asset('assets/images/test_icon.png',width: 50,height: 50,),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.asset('assets/images/icon.png',width: 65,height: 65,),
+              ),
               SizedBox(height: 10,),
               Text("File Crypt",style:Theme.of(context).textTheme.bodyText2),
               SizedBox(height: 6,),

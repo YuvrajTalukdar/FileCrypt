@@ -276,9 +276,8 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
       if(data is Image)
       {
         Navigator.pop(context);
-        Navigator.push(context,
-          MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:data)),
-        );
+        Navigator.push(context,MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:data)),);
+        //Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => ImageViewer(key:Key(''),imageName: content.fileName,image:data)), (e) => false);
         //imageViewerIsolate.kill();
       }
     });
