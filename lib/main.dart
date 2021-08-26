@@ -197,28 +197,6 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     );
   }
 
-  late Isolate fileOutIsolate;
-  void move_files_out() async
-  {
-    ReceivePort receivePort= ReceivePort();
-    fileOutIsolate = await Isolate.spawn((file_read_write.move_file_out),[receivePort.sendPort,password,selectedItems,frw.localPath]);
-    receivePort.listen((data) {
-      if(data is String)
-      {
-        try
-        { platform.invokeMethod("moveFilesOut");}
-        on PlatformException catch (e)
-        {}
-      }
-      else if(data is int)
-      {
-
-      }
-    });
-    progressMsg="Moving Files Out";
-    progressCircle();
-  }
-
   void getData() async{
     List<vaultData> vaultDataList=await ArchiveDatabase.instance.readAllVault();
     setState(() {
@@ -283,31 +261,119 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
     });
   }
 
-  late Isolate fileAddIsolate;
+  void move_files_out() async
+  {
+    Stopwatch watch=Stopwatch()..start();
+    int size_of_one_list=(selectedItems.length/no_of_threads).toInt();
+    List<List<vaultContent>> list_of_selectedItemList=[];
+    //print("list_size="+size_of_one_list.toString());
+    int listLen=selectedItems.length;
+    for(int a=0;a<no_of_threads;a++)
+    { print("a="+a.toString());
+      List<vaultContent> new_file_list=[];
+      for(int b=listLen-1;b>=listLen-size_of_one_list;b--)
+      {   print("b="+b.toString()+" less="+(listLen-size_of_one_list).toString());
+        new_file_list.add(selectedItems[b]);
+      }
+      listLen-=size_of_one_list;
+      list_of_selectedItemList.add(new_file_list);
+    }
+    if(listLen>0)
+    {
+      for(int a=0;a<listLen;a++)
+      {
+        list_of_selectedItemList[list_of_selectedItemList.length-1].add(selectedItems[a]);
+      }
+    }
+    for(int a=0;a<list_of_selectedItemList.length;a++)
+    {
+      ReceivePort receivePort= ReceivePort();
+      await Isolate.spawn((file_read_write.move_file_out),[receivePort.sendPort,password,list_of_selectedItemList[a],frw.localPath]);
+      receivePort.listen((data) {
+        if(data is String)
+        {
+          no_of_complete_thread++;
+          if(no_of_complete_thread==no_of_threads)
+          {
+            try
+            { platform.invokeMethod("moveFilesOut");}
+            on PlatformException catch (e)
+            {}
+            list_of_selectedItemList.clear();
+            print('fx executed in ${watch.elapsed}');
+          }
+        }
+        else if(data is int)
+        {
+
+        }
+      });
+    }
+    progressMsg="Moving Files Out";
+    progressCircle();
+  }
+
+  int no_of_threads=4;
+  int no_of_complete_thread=0;
   void add_files_to_vault(List<File> fileList) async
   {
+    Stopwatch watch=Stopwatch()..start();
     search("");
+    int size_of_one_list=(fileList.length/no_of_threads).toInt();
+    List<List<File>> list_of_fileList=[];
+    //print("list_size="+size_of_one_list.toString());
+    int listLen=fileList.length;
+    for(int a=0;a<no_of_threads;a++)
+    { //print("a="+a.toString());
+      List<File> new_file_list=[];
+      for(int b=fileList.length-1;b>=listLen-size_of_one_list;b--)
+      {   //print("b="+b.toString()+" less="+(listLen-size_of_one_list).toString());
+          new_file_list.add(fileList.removeAt(b));
+      }
+      listLen-=size_of_one_list;
+      list_of_fileList.add(new_file_list);
+    }
+
+    if(fileList.length>0)
+    {
+      for(int a=0;a<fileList.length;a++)
+      {
+        list_of_fileList[list_of_fileList.length-1].add(fileList[a]);
+      }
+      fileList.clear();
+    }
     int first_id;
     if(vaultContentList.length==0)
     { first_id=0;}
     else
     { first_id=vaultContentList[vaultContentList.length-1].id+1;}
-    ReceivePort receivePort= ReceivePort();
-    fileAddIsolate=await Isolate.spawn((file_read_write.add_files_to_vault),[receivePort.sendPort,first_id,vaultName,password,fileList,frw.localPath]);
-    receivePort.listen((data) {
-      if(data is List<vaultContent>) {
-        List<vaultContent> contentList = data;
-        setState(() {
-          vaultContentList.addAll(contentList);
-        });
-        frw.delete_folder("uri_to_file");
-        Navigator.of(context).pop(true);
-      }
-      else if(data is int)
-      {
+    for(int a=0;a<list_of_fileList.length;a++)
+    {
+      ReceivePort receivePort= new ReceivePort();
+      await Isolate.spawn((file_read_write.add_files_to_vault),[receivePort.sendPort,first_id,vaultName,password,list_of_fileList[a],frw.localPath]);
+      receivePort.listen((data) {
+        if(data is List<vaultContent>) {
+          List<vaultContent> contentList = data;
+          setState(() {
+            vaultContentList.addAll(contentList);
+          });
+          no_of_complete_thread++;
+          if(no_of_complete_thread==no_of_threads)
+          {
+            frw.delete_folder("uri_to_file");
+            Navigator.of(context).pop(true);
+            no_of_complete_thread=0;
+            list_of_fileList.clear();
+            print('fx executed in ${watch.elapsed}');
+          }
+        }
+        else if(data is int)
+        {
 
-      }
-    });
+        }
+      });
+      first_id+=size_of_one_list;
+    }
     progressMsg="Adding Files";
     progressCircle();
   }

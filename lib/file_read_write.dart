@@ -227,6 +227,7 @@ class file_read_write {
     List<File> fileList = arguments[4] as List<File>;
     String localPath2 = arguments[5] as String;
     List<vaultContent> contentList=[];
+    //Stopwatch watch=Stopwatch()..start();
     for(int a=0;a<fileList.length;a++)
     {
       vaultContent content=new vaultContent();
@@ -244,7 +245,7 @@ class file_read_write {
       if(!(await encryptedFile.exists())) {
         final iterator = ChunkedStreamReader(fileList[a].openRead());
         while (true) {
-          List<int> lengthBytes = await iterator.readChunk(4096); //4,8,16,1024,2048
+          List<int> lengthBytes = await iterator.readChunk(4096); //4096
           if(lengthBytes.isEmpty)
           { break;}
           if(content.iconCode==-1)
@@ -262,7 +263,7 @@ class file_read_write {
         contentList.add(content);
         decrypted_byte_list.clear();
       }
-      //sendPort.send(a+1);
+      sendPort.send(a+1);
     }
     //print('fx executed in ${watch.elapsed}');
     sendPort.send(contentList);
