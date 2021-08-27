@@ -423,14 +423,14 @@ class HomeState extends State<Home> with TickerProviderStateMixin {
 
   void openVault(int vault_id,String vault_name,String pass) async
   {
-    Navigator.of(context).pop();
-    progressMsg="Opening Vault";
-    progressCircle();
     File passCheckFile = File(frw.localPath+"/"+vault_name+"/passcheck");
     String text = await passCheckFile.readAsString();
     text=aes.decrypt(text,pass);
     if(text.compareTo(pass)==0)
     {
+      Navigator.of(context).pop();
+      progressMsg="Opening Vault";
+      progressCircle();
       Stopwatch watch=Stopwatch()..start();
       password=pass;
       vaultName=vault_name;
